@@ -12,7 +12,7 @@ export type SharedTask = { id: string, organization_id: string, project_id: stri
 
 export type UserData = { user_id: string, first_name: string | null, last_name: string | null, username: string | null, };
 
-export type Project = { id: string, name: string, default_agent_working_dir: string | null, remote_project_id: string | null, created_at: Date, updated_at: Date, };
+export type Project = { id: string, name: string, default_agent_working_dir: string | null, remote_project_id: string | null, workflow_scheme_id: string | null, created_at: Date, updated_at: Date, };
 
 export type CreateProject = { name: string, repositories: Array<CreateProjectRepo>, };
 
@@ -48,15 +48,41 @@ export type UpdateTag = { tag_name: string | null, content: string | null, };
 
 export type TaskStatus = "todo" | "inprogress" | "inreview" | "done" | "cancelled";
 
-export type Task = { id: string, project_id: string, title: string, description: string | null, status: TaskStatus, parent_workspace_id: string | null, shared_task_id: string | null, created_at: string, updated_at: string, };
+export type Task = { id: string, project_id: string, title: string, description: string | null, status: TaskStatus, workflow_status: string | null, parent_workspace_id: string | null, shared_task_id: string | null, created_at: string, updated_at: string, };
 
-export type TaskWithAttemptStatus = { has_in_progress_attempt: boolean, last_attempt_failed: boolean, executor: string, id: string, project_id: string, title: string, description: string | null, status: TaskStatus, parent_workspace_id: string | null, shared_task_id: string | null, created_at: string, updated_at: string, };
+export type TaskWithAttemptStatus = { has_in_progress_attempt: boolean, last_attempt_failed: boolean, executor: string, id: string, project_id: string, title: string, description: string | null, status: TaskStatus, workflow_status: string | null, parent_workspace_id: string | null, shared_task_id: string | null, created_at: string, updated_at: string, };
 
 export type TaskRelationships = { parent_task: Task | null, current_workspace: Workspace, children: Array<Task>, };
 
 export type CreateTask = { project_id: string, title: string, description: string | null, status: TaskStatus | null, parent_workspace_id: string | null, image_ids: Array<string> | null, shared_task_id: string | null, };
 
-export type UpdateTask = { title: string | null, description: string | null, status: TaskStatus | null, parent_workspace_id: string | null, image_ids: Array<string> | null, };
+export type UpdateTask = { title: string | null, description: string | null, status: string | null, parent_workspace_id: string | null, image_ids: Array<string> | null, };
+
+export type WorkflowScheme = { id: string, name: string, description: string | null, is_default: boolean, statuses: Array<WorkflowStatus>, transitions: Array<WorkflowTransition>, created_at: string, updated_at: string, };
+
+export type WorkflowStatus = { name: string, display_name: string, color: string, position: number, is_initial: boolean, is_terminal: boolean, agent_config: WorkflowAgentConfig | null, automated_actions: Array<WorkflowAutomatedAction>, };
+
+export type WorkflowAgentConfig = { executor_profile_id: ExecutorProfileId | null, instructions: string | null, append_prompt: string | null, };
+
+export type ExecutorProfileId = { executor: string, variant: string | null, };
+
+export type WorkflowAutomatedAction = { "type": "script", trigger: ActionTrigger, script: string, on_failure: TransitionOnFailure | null, } | { "type": "notification", trigger: ActionTrigger, sound: string, } | { "type": "wait_for_human", trigger: ActionTrigger, };
+
+export type ActionTrigger = "on_enter" | "on_exit";
+
+export type TransitionOnFailure = { transition_to: string, inject_error_logs: boolean, };
+
+export type WorkflowTransition = { from_status: string, to_status: string, button_label: string, button_variant: string | null, requires_feedback: boolean, feedback_prompt: string | null, pre_actions: Array<TransitionAction>, post_actions: Array<TransitionAction>, };
+
+export type TransitionAction = { "type": "commit", message_template: string, } | { "type": "create_pr", draft: boolean, } | { "type": "inject_feedback", target: string, } | { "type": "run_script", script: string, } | { "type": "play_sound", sound: string, } | { "type": "store_plan", directory: string, };
+
+export type CreateWorkflowScheme = { name: string, description: string | null, statuses: Array<WorkflowStatus>, transitions: Array<WorkflowTransition>, };
+
+export type UpdateWorkflowScheme = { name: string | null, description: string | null, statuses: Array<WorkflowStatus> | null, transitions: Array<WorkflowTransition> | null, };
+
+export type CloneSchemeRequest = { scheme_id: string, name: string, };
+
+export type ValidationResult = { is_valid: boolean, errors: Array<string>, };
 
 export type DraftFollowUpData = { message: string, variant: string | null, };
 

@@ -763,7 +763,7 @@ impl TaskServer {
     ) -> Result<CallToolResult, ErrorData> {
         let status = if let Some(ref status_str) = status {
             match TaskStatus::from_str(status_str) {
-                Ok(s) => Some(s),
+                Ok(_s) => Some(status_str.to_string()),
                 Err(_) => {
                     return Self::err(
                         "Invalid status filter. Valid values: 'todo', 'inprogress', 'inreview', 'done', 'cancelled'".to_string(),

@@ -10,7 +10,7 @@ use axum::{
     http::StatusCode,
     middleware::from_fn_with_state,
     response::{IntoResponse, Json as ResponseJson},
-    routing::{get, post},
+    routing::{get, post, put},
 };
 use db::models::{
     project::{CreateProject, Project, ProjectError, SearchResult, UpdateProject},
@@ -568,6 +568,23 @@ pub async fn get_project_repository(
     }
 }
 
+#[derive(Deserialize, TS)]
+pub struct SetWorkflowSchemeRequest {
+    pub workflow_scheme_id: Option<Uuid>,
+}
+
+pub async fn set_project_workflow_scheme(
+    Extension(project): Extension<Project>,
+    State(deployment): State<DeploymentImpl>,
+    Json(payload): Json<SetWorkflowSchemeRequest>,
+) -> Result<ResponseJson<ApiResponse<Project>>, ApiError> {
+    let updated_project =
+        Project::set_workflow_scheme_id(&deployment.db().pool, project.id, payload.workflow_scheme_id)
+            .await?;
+
+    Ok(ResponseJson(ApiResponse::success(updated_project)))
+}
+
 pub fn router(deployment: &DeploymentImpl) -> Router<DeploymentImpl> {
     let project_id_router = Router::new()
         .route(
@@ -582,6 +599,7 @@ pub fn router(deployment: &DeploymentImpl) -> Router<DeploymentImpl> {
             post(link_project_to_existing_remote).delete(unlink_project),
         )
         .route("/link/create", post(create_and_link_remote_project))
+        .route("/workflow-scheme", put(set_project_workflow_scheme))
         .route(
             "/repositories",
             get(get_project_repositories).post(add_project_repository),

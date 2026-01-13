@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT p.id as \"id!: Uuid\", p.name,\n                   p.default_agent_working_dir,\n                   p.remote_project_id as \"remote_project_id: Uuid\",\n                   p.created_at as \"created_at!: DateTime<Utc>\", p.updated_at as \"updated_at!: DateTime<Utc>\"\n            FROM projects p\n            WHERE p.id IN (\n                SELECT DISTINCT t.project_id\n                FROM tasks t\n                INNER JOIN workspaces w ON w.task_id = t.id\n                ORDER BY w.updated_at DESC\n            )\n            LIMIT $1\n            ",
+  "query": "SELECT id as \"id!: Uuid\",\n                      name,\n                      default_agent_working_dir,\n                      remote_project_id as \"remote_project_id: Uuid\",\n                      workflow_scheme_id as \"workflow_scheme_id: Uuid\",\n                      created_at as \"created_at!: DateTime<Utc>\",\n                      updated_at as \"updated_at!: DateTime<Utc>\"\n               FROM projects\n               ORDER BY created_at DESC",
   "describe": {
     "columns": [
       {
@@ -24,27 +24,33 @@
         "type_info": "Blob"
       },
       {
-        "name": "created_at!: DateTime<Utc>",
+        "name": "workflow_scheme_id: Uuid",
         "ordinal": 4,
+        "type_info": "Blob"
+      },
+      {
+        "name": "created_at!: DateTime<Utc>",
+        "ordinal": 5,
         "type_info": "Text"
       },
       {
         "name": "updated_at!: DateTime<Utc>",
-        "ordinal": 5,
+        "ordinal": 6,
         "type_info": "Text"
       }
     ],
     "parameters": {
-      "Right": 1
+      "Right": 0
     },
     "nullable": [
       true,
       false,
       true,
       true,
+      true,
       false,
       false
     ]
   },
-  "hash": "dcfb1acc0883f660f3300aece1d8e7541bf474fe970664581dfb971345196ee9"
+  "hash": "ce1fb8e40558101c09aa41f1d27767185be95632c61faca9c684794d281edcea"
 }

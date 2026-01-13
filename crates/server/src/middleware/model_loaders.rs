@@ -6,7 +6,7 @@ use axum::{
 };
 use db::models::{
     execution_process::ExecutionProcess, project::Project, session::Session, tag::Tag, task::Task,
-    workspace::Workspace,
+    workflow_scheme::WorkflowScheme, workspace::Workspace,
 };
 use deployment::Deployment;
 use uuid::Uuid;
@@ -167,5 +167,27 @@ pub async fn load_session_middleware(
     };
 
     request.extensions_mut().insert(session);
+    Ok(next.run(request).await)
+}
+
+pub async fn load_workflow_scheme_middleware(
+    State(deployment): State<DeploymentImpl>,
+    Path(scheme_id): Path<Uuid>,
+    mut request: Request,
+    next: Next,
+) -> Result<Response, StatusCode> {
+    let scheme = match WorkflowScheme::find_by_id(&deployment.db().pool, scheme_id).await {
+        Ok(Some(scheme)) => scheme,
+        Ok(None) => {
+            tracing::warn!("Workflow scheme {} not found", scheme_id);
+            return Err(StatusCode::NOT_FOUND);
+        }
+        Err(e) => {
+            tracing::error!("Failed to fetch workflow scheme {}: {}", scheme_id, e);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
+
+    request.extensions_mut().insert(scheme);
     Ok(next.run(request).await)
 }

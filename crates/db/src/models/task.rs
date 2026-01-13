@@ -29,6 +29,7 @@ pub struct Task {
     pub title: String,
     pub description: Option<String>,
     pub status: TaskStatus,
+    pub workflow_status: Option<String>, // New: workflow status name (e.g., "PLANNING", "IMPLEMENTING")
     pub parent_workspace_id: Option<Uuid>, // Foreign key to parent Workspace
     pub shared_task_id: Option<Uuid>,
     pub created_at: DateTime<Utc>,
@@ -116,7 +117,7 @@ impl CreateTask {
 pub struct UpdateTask {
     pub title: Option<String>,
     pub description: Option<String>,
-    pub status: Option<TaskStatus>,
+    pub status: Option<String>,
     pub parent_workspace_id: Option<Uuid>,
     pub image_ids: Option<Vec<Uuid>>,
 }
@@ -198,6 +199,7 @@ ORDER BY t.created_at DESC"#,
                     title: rec.title,
                     description: rec.description,
                     status: rec.status,
+                    workflow_status: None,
                     parent_workspace_id: rec.parent_workspace_id,
                     shared_task_id: rec.shared_task_id,
                     created_at: rec.created_at,
@@ -215,7 +217,7 @@ ORDER BY t.created_at DESC"#,
     pub async fn find_by_id(pool: &SqlitePool, id: Uuid) -> Result<Option<Self>, sqlx::Error> {
         sqlx::query_as!(
             Task,
-            r#"SELECT id as "id!: Uuid", project_id as "project_id!: Uuid", title, description, status as "status!: TaskStatus", parent_workspace_id as "parent_workspace_id: Uuid", shared_task_id as "shared_task_id: Uuid", created_at as "created_at!: DateTime<Utc>", updated_at as "updated_at!: DateTime<Utc>"
+            r#"SELECT id as "id!: Uuid", project_id as "project_id!: Uuid", title, description, status as "status!: TaskStatus", parent_workspace_id as "parent_workspace_id: Uuid", shared_task_id as "shared_task_id: Uuid", workflow_status, created_at as "created_at!: DateTime<Utc>", updated_at as "updated_at!: DateTime<Utc>"
                FROM tasks
                WHERE id = $1"#,
             id
@@ -227,7 +229,7 @@ ORDER BY t.created_at DESC"#,
     pub async fn find_by_rowid(pool: &SqlitePool, rowid: i64) -> Result<Option<Self>, sqlx::Error> {
         sqlx::query_as!(
             Task,
-            r#"SELECT id as "id!: Uuid", project_id as "project_id!: Uuid", title, description, status as "status!: TaskStatus", parent_workspace_id as "parent_workspace_id: Uuid", shared_task_id as "shared_task_id: Uuid", created_at as "created_at!: DateTime<Utc>", updated_at as "updated_at!: DateTime<Utc>"
+            r#"SELECT id as "id!: Uuid", project_id as "project_id!: Uuid", title, description, status as "status!: TaskStatus", parent_workspace_id as "parent_workspace_id: Uuid", shared_task_id as "shared_task_id: Uuid", workflow_status, created_at as "created_at!: DateTime<Utc>", updated_at as "updated_at!: DateTime<Utc>"
                FROM tasks
                WHERE rowid = $1"#,
             rowid
@@ -245,7 +247,7 @@ ORDER BY t.created_at DESC"#,
     {
         sqlx::query_as!(
             Task,
-            r#"SELECT id as "id!: Uuid", project_id as "project_id!: Uuid", title, description, status as "status!: TaskStatus", parent_workspace_id as "parent_workspace_id: Uuid", shared_task_id as "shared_task_id: Uuid", created_at as "created_at!: DateTime<Utc>", updated_at as "updated_at!: DateTime<Utc>"
+            r#"SELECT id as "id!: Uuid", project_id as "project_id!: Uuid", title, description, status as "status!: TaskStatus", parent_workspace_id as "parent_workspace_id: Uuid", shared_task_id as "shared_task_id: Uuid", workflow_status, created_at as "created_at!: DateTime<Utc>", updated_at as "updated_at!: DateTime<Utc>"
                FROM tasks
                WHERE shared_task_id = $1
                LIMIT 1"#,
@@ -258,7 +260,7 @@ ORDER BY t.created_at DESC"#,
     pub async fn find_all_shared(pool: &SqlitePool) -> Result<Vec<Self>, sqlx::Error> {
         sqlx::query_as!(
             Task,
-            r#"SELECT id as "id!: Uuid", project_id as "project_id!: Uuid", title, description, status as "status!: TaskStatus", parent_workspace_id as "parent_workspace_id: Uuid", shared_task_id as "shared_task_id: Uuid", created_at as "created_at!: DateTime<Utc>", updated_at as "updated_at!: DateTime<Utc>"
+            r#"SELECT id as "id!: Uuid", project_id as "project_id!: Uuid", title, description, status as "status!: TaskStatus", parent_workspace_id as "parent_workspace_id: Uuid", shared_task_id as "shared_task_id: Uuid", workflow_status, created_at as "created_at!: DateTime<Utc>", updated_at as "updated_at!: DateTime<Utc>"
                FROM tasks
                WHERE shared_task_id IS NOT NULL"#
         )
@@ -276,7 +278,7 @@ ORDER BY t.created_at DESC"#,
             Task,
             r#"INSERT INTO tasks (id, project_id, title, description, status, parent_workspace_id, shared_task_id)
                VALUES ($1, $2, $3, $4, $5, $6, $7)
-               RETURNING id as "id!: Uuid", project_id as "project_id!: Uuid", title, description, status as "status!: TaskStatus", parent_workspace_id as "parent_workspace_id: Uuid", shared_task_id as "shared_task_id: Uuid", created_at as "created_at!: DateTime<Utc>", updated_at as "updated_at!: DateTime<Utc>""#,
+               RETURNING id as "id!: Uuid", project_id as "project_id!: Uuid", title, description, status as "status!: TaskStatus", parent_workspace_id as "parent_workspace_id: Uuid", shared_task_id as "shared_task_id: Uuid", workflow_status, created_at as "created_at!: DateTime<Utc>", updated_at as "updated_at!: DateTime<Utc>""#,
             task_id,
             data.project_id,
             data.title,
@@ -303,7 +305,7 @@ ORDER BY t.created_at DESC"#,
             r#"UPDATE tasks
                SET title = $3, description = $4, status = $5, parent_workspace_id = $6
                WHERE id = $1 AND project_id = $2
-               RETURNING id as "id!: Uuid", project_id as "project_id!: Uuid", title, description, status as "status!: TaskStatus", parent_workspace_id as "parent_workspace_id: Uuid", shared_task_id as "shared_task_id: Uuid", created_at as "created_at!: DateTime<Utc>", updated_at as "updated_at!: DateTime<Utc>""#,
+               RETURNING id as "id!: Uuid", project_id as "project_id!: Uuid", title, description, status as "status!: TaskStatus", parent_workspace_id as "parent_workspace_id: Uuid", shared_task_id as "shared_task_id: Uuid", workflow_status, created_at as "created_at!: DateTime<Utc>", updated_at as "updated_at!: DateTime<Utc>""#,
             id,
             project_id,
             title,
@@ -446,7 +448,7 @@ ORDER BY t.created_at DESC"#,
         // Find only child tasks that have this workspace as their parent
         sqlx::query_as!(
             Task,
-            r#"SELECT id as "id!: Uuid", project_id as "project_id!: Uuid", title, description, status as "status!: TaskStatus", parent_workspace_id as "parent_workspace_id: Uuid", shared_task_id as "shared_task_id: Uuid", created_at as "created_at!: DateTime<Utc>", updated_at as "updated_at!: DateTime<Utc>"
+            r#"SELECT id as "id!: Uuid", project_id as "project_id!: Uuid", title, description, status as "status!: TaskStatus", parent_workspace_id as "parent_workspace_id: Uuid", shared_task_id as "shared_task_id: Uuid", workflow_status, created_at as "created_at!: DateTime<Utc>", updated_at as "updated_at!: DateTime<Utc>"
                FROM tasks
                WHERE parent_workspace_id = $1
                ORDER BY created_at DESC"#,
