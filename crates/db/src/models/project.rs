@@ -23,6 +23,7 @@ pub struct Project {
     pub name: String,
     pub default_agent_working_dir: Option<String>,
     pub remote_project_id: Option<Uuid>,
+    pub workflow_scheme_id: Option<Uuid>,
     #[ts(type = "Date")]
     pub created_at: DateTime<Utc>,
     #[ts(type = "Date")]
@@ -71,6 +72,7 @@ impl Project {
                       name,
                       default_agent_working_dir,
                       remote_project_id as "remote_project_id: Uuid",
+                      workflow_scheme_id as "workflow_scheme_id: Uuid",
                       created_at as "created_at!: DateTime<Utc>",
                       updated_at as "updated_at!: DateTime<Utc>"
                FROM projects
@@ -88,6 +90,7 @@ impl Project {
             SELECT p.id as "id!: Uuid", p.name,
                    p.default_agent_working_dir,
                    p.remote_project_id as "remote_project_id: Uuid",
+                   p.workflow_scheme_id as "workflow_scheme_id: Uuid",
                    p.created_at as "created_at!: DateTime<Utc>", p.updated_at as "updated_at!: DateTime<Utc>"
             FROM projects p
             WHERE p.id IN (
@@ -111,6 +114,7 @@ impl Project {
                       name,
                       default_agent_working_dir,
                       remote_project_id as "remote_project_id: Uuid",
+                      workflow_scheme_id as "workflow_scheme_id: Uuid",
                       created_at as "created_at!: DateTime<Utc>",
                       updated_at as "updated_at!: DateTime<Utc>"
                FROM projects
@@ -128,6 +132,7 @@ impl Project {
                       name,
                       default_agent_working_dir,
                       remote_project_id as "remote_project_id: Uuid",
+                      workflow_scheme_id as "workflow_scheme_id: Uuid",
                       created_at as "created_at!: DateTime<Utc>",
                       updated_at as "updated_at!: DateTime<Utc>"
                FROM projects
@@ -148,6 +153,7 @@ impl Project {
                       name,
                       default_agent_working_dir,
                       remote_project_id as "remote_project_id: Uuid",
+                      workflow_scheme_id as "workflow_scheme_id: Uuid",
                       created_at as "created_at!: DateTime<Utc>",
                       updated_at as "updated_at!: DateTime<Utc>"
                FROM projects
@@ -176,6 +182,7 @@ impl Project {
                           name,
                           default_agent_working_dir,
                           remote_project_id as "remote_project_id: Uuid",
+                          workflow_scheme_id as "workflow_scheme_id: Uuid",
                           created_at as "created_at!: DateTime<Utc>",
                           updated_at as "updated_at!: DateTime<Utc>""#,
             project_id,
@@ -205,6 +212,7 @@ impl Project {
                          name,
                          default_agent_working_dir,
                          remote_project_id as "remote_project_id: Uuid",
+                         workflow_scheme_id as "workflow_scheme_id: Uuid",
                          created_at as "created_at!: DateTime<Utc>",
                          updated_at as "updated_at!: DateTime<Utc>""#,
             id,
@@ -252,6 +260,30 @@ impl Project {
         .await?;
 
         Ok(())
+    }
+
+    pub async fn set_workflow_scheme_id(
+        pool: &SqlitePool,
+        id: Uuid,
+        workflow_scheme_id: Option<Uuid>,
+    ) -> Result<Self, sqlx::Error> {
+        sqlx::query_as!(
+            Project,
+            r#"UPDATE projects
+               SET workflow_scheme_id = $2
+               WHERE id = $1
+               RETURNING id as "id!: Uuid",
+                         name,
+                         default_agent_working_dir,
+                         remote_project_id as "remote_project_id: Uuid",
+                         workflow_scheme_id as "workflow_scheme_id: Uuid",
+                         created_at as "created_at!: DateTime<Utc>",
+                         updated_at as "updated_at!: DateTime<Utc>""#,
+            id,
+            workflow_scheme_id
+        )
+        .fetch_one(pool)
+        .await
     }
 
     pub async fn delete(pool: &SqlitePool, id: Uuid) -> Result<u64, sqlx::Error> {
