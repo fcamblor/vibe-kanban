@@ -48,7 +48,6 @@ import { useHotkeysContext } from 'react-hotkeys-hook';
 import { cn } from '@/lib/utils';
 import { paths } from '@/lib/paths';
 import type {
-  TaskStatus,
   ExecutorProfileId,
   ImageResponse,
   WorkflowTransition,
@@ -59,7 +58,7 @@ interface Task {
   project_id: string;
   title: string;
   description: string | null;
-  status: TaskStatus;
+  status: string;
   created_at: string;
   updated_at: string;
 }
@@ -80,7 +79,7 @@ type RepoBranch = { repoId: string; branch: string };
 type TaskFormValues = {
   title: string;
   description: string;
-  status: TaskStatus;
+  status: string;
   executorProfileId: ExecutorProfileId | null;
   repoBranches: RepoBranch[];
   targetTransition: WorkflowTransition | null;
@@ -143,6 +142,14 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
   const defaultValues = useMemo((): TaskFormValues => {
     const baseProfile = system.config?.executor_profile || null;
 
+    // Auto-initialize worktree by pre-selecting transition to inprogress on task creation
+    const defaultTransition =
+      mode === 'create'
+        ? availableTransitions.find((t) => t.to_status === 'inprogress') ||
+          availableTransitions[0] ||
+          null
+        : null;
+
     switch (mode) {
       case 'edit':
         return {
@@ -173,10 +180,10 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
           status: 'todo',
           executorProfileId: baseProfile,
           repoBranches: defaultRepoBranches,
-          targetTransition: null,
+          targetTransition: defaultTransition,
         };
     }
-  }, [mode, props, system.config?.executor_profile, defaultRepoBranches]);
+  }, [mode, props, system.config?.executor_profile, defaultRepoBranches, availableTransitions]);
 
   // Form submission handler
   const handleSubmit = async ({ value }: { value: TaskFormValues }) => {
@@ -490,7 +497,7 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
                   <Select
                     value={field.state.value}
                     onValueChange={(value) =>
-                      field.handleChange(value as TaskStatus)
+                      field.handleChange(value)
                     }
                     disabled={isSubmitting}
                   >

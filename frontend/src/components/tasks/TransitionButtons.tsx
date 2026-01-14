@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ChevronDown, Loader2, X } from 'lucide-react';
-import type { TaskWithAttemptStatus, TaskStatus } from 'shared/types';
+import type { TaskWithAttemptStatus } from 'shared/types';
 import { Dialog } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 
@@ -56,7 +56,7 @@ export function TransitionButtons({
         await tasksApi.update(task.id, {
           title: task.title,
           description: task.description,
-          status: toStatus as TaskStatus,
+          status: toStatus,
           parent_workspace_id: task.parent_workspace_id,
           image_ids: null,
         });

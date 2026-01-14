@@ -81,9 +81,7 @@ export function TaskFollowUpSection({
 
   // Check if discussions are allowed for current task status
   const currentStatus = task.workflow_status || task.status;
-  const statusConfig = scheme?.statuses?.find(
-    (s) => s.name === currentStatus
-  );
+  const statusConfig = scheme.getStatus(currentStatus);
   const allowDiscussions = statusConfig?.allow_discussions ?? true;
 
   const { isAttemptRunning, stopExecution, isStopping, processes } =

@@ -946,6 +946,13 @@ export function ProjectTasks() {
             <p className="text-muted-foreground">
               {t('empty.noSearchResults')}
             </p>
+            {/* Show create button when no tasks exist to give user a way to proceed */}
+            {tasks.length === 0 && (
+              <Button className="mt-4" onClick={handleCreateNewTask} variant="outline">
+                <Plus className="h-4 w-4 mr-2" />
+                {t('empty.createFirst')}
+              </Button>
+            )}
           </CardContent>
         </Card>
       </div>
