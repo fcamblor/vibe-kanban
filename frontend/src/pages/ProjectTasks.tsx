@@ -74,20 +74,18 @@ import {
 import { AttemptHeaderActions } from '@/components/panels/AttemptHeaderActions';
 import { TaskPanelHeaderActions } from '@/components/panels/TaskPanelHeaderActions';
 
-import type { TaskWithAttemptStatus, TaskStatus } from 'shared/types';
+import type { TaskWithAttemptStatus } from 'shared/types';
 
 type Task = TaskWithAttemptStatus;
 
-const TASK_STATUSES = [
+// Legacy fallback statuses for projects without workflow schemes
+const LEGACY_STATUSES = [
   'todo',
   'inprogress',
   'inreview',
   'done',
   'cancelled',
 ] as const;
-
-const normalizeStatus = (status: string): TaskStatus =>
-  status.toLowerCase() as TaskStatus;
 
 function GitErrorBanner() {
   const { error: gitError } = useGitOperationsError();
@@ -418,7 +416,7 @@ export function ProjectTasks() {
       });
     } else {
       // Fallback to legacy statuses
-      TASK_STATUSES.forEach((status) => {
+      LEGACY_STATUSES.forEach((status) => {
         columns[status] = [];
       });
     }
@@ -512,23 +510,25 @@ export function ProjectTasks() {
     scheme?.statuses,
   ]);
 
-  const visibleTasksByStatus = useMemo(() => {
-    const map: Record<TaskStatus, Task[]> = {
-      todo: [],
-      inprogress: [],
-      inreview: [],
-      done: [],
-      cancelled: [],
-    };
+  // Get ordered statuses from scheme or legacy fallback
+  const orderedStatuses = useMemo(() => {
+    if (scheme?.statuses) {
+      return scheme.statuses.map((s) => s.name);
+    }
+    return Array.from(LEGACY_STATUSES);
+  }, [scheme?.statuses]);
 
-    TASK_STATUSES.forEach((status) => {
+  const visibleTasksByStatus = useMemo(() => {
+    const map: Record<string, Task[]> = {};
+
+    orderedStatuses.forEach((status) => {
       map[status] = kanbanColumns[status]
         .filter((item) => item.type === 'task')
         .map((item) => item.task);
     });
 
     return map;
-  }, [kanbanColumns]);
+  }, [kanbanColumns, orderedStatuses]);
 
   const hasVisibleLocalTasks = useMemo(
     () =>
@@ -726,7 +726,7 @@ export function ProjectTasks() {
 
   const selectNextTask = useCallback(() => {
     if (selectedTask) {
-      const statusKey = normalizeStatus(selectedTask.status);
+      const statusKey = selectedTask.workflow_status || selectedTask.status;
       const tasksInStatus = visibleTasksByStatus[statusKey] || [];
       const currentIndex = tasksInStatus.findIndex(
         (task) => task.id === selectedTask.id
@@ -735,7 +735,7 @@ export function ProjectTasks() {
         handleViewTaskDetails(tasksInStatus[currentIndex + 1]);
       }
     } else {
-      for (const status of TASK_STATUSES) {
+      for (const status of orderedStatuses) {
         const tasks = visibleTasksByStatus[status];
         if (tasks && tasks.length > 0) {
           handleViewTaskDetails(tasks[0]);
@@ -743,11 +743,11 @@ export function ProjectTasks() {
         }
       }
     }
-  }, [selectedTask, visibleTasksByStatus, handleViewTaskDetails]);
+  }, [selectedTask, visibleTasksByStatus, orderedStatuses, handleViewTaskDetails]);
 
   const selectPreviousTask = useCallback(() => {
     if (selectedTask) {
-      const statusKey = normalizeStatus(selectedTask.status);
+      const statusKey = selectedTask.workflow_status || selectedTask.status;
       const tasksInStatus = visibleTasksByStatus[statusKey] || [];
       const currentIndex = tasksInStatus.findIndex(
         (task) => task.id === selectedTask.id
@@ -756,7 +756,7 @@ export function ProjectTasks() {
         handleViewTaskDetails(tasksInStatus[currentIndex - 1]);
       }
     } else {
-      for (const status of TASK_STATUSES) {
+      for (const status of orderedStatuses) {
         const tasks = visibleTasksByStatus[status];
         if (tasks && tasks.length > 0) {
           handleViewTaskDetails(tasks[0]);
@@ -764,23 +764,23 @@ export function ProjectTasks() {
         }
       }
     }
-  }, [selectedTask, visibleTasksByStatus, handleViewTaskDetails]);
+  }, [selectedTask, visibleTasksByStatus, orderedStatuses, handleViewTaskDetails]);
 
   const selectNextColumn = useCallback(() => {
     if (selectedTask) {
-      const currentStatus = normalizeStatus(selectedTask.status);
-      const currentIndex = TASK_STATUSES.findIndex(
+      const currentStatus = selectedTask.workflow_status || selectedTask.status;
+      const currentIndex = orderedStatuses.findIndex(
         (status) => status === currentStatus
       );
-      for (let i = currentIndex + 1; i < TASK_STATUSES.length; i++) {
-        const tasks = visibleTasksByStatus[TASK_STATUSES[i]];
+      for (let i = currentIndex + 1; i < orderedStatuses.length; i++) {
+        const tasks = visibleTasksByStatus[orderedStatuses[i]];
         if (tasks && tasks.length > 0) {
           handleViewTaskDetails(tasks[0]);
           return;
         }
       }
     } else {
-      for (const status of TASK_STATUSES) {
+      for (const status of orderedStatuses) {
         const tasks = visibleTasksByStatus[status];
         if (tasks && tasks.length > 0) {
           handleViewTaskDetails(tasks[0]);
@@ -788,23 +788,23 @@ export function ProjectTasks() {
         }
       }
     }
-  }, [selectedTask, visibleTasksByStatus, handleViewTaskDetails]);
+  }, [selectedTask, visibleTasksByStatus, orderedStatuses, handleViewTaskDetails]);
 
   const selectPreviousColumn = useCallback(() => {
     if (selectedTask) {
-      const currentStatus = normalizeStatus(selectedTask.status);
-      const currentIndex = TASK_STATUSES.findIndex(
+      const currentStatus = selectedTask.workflow_status || selectedTask.status;
+      const currentIndex = orderedStatuses.findIndex(
         (status) => status === currentStatus
       );
       for (let i = currentIndex - 1; i >= 0; i--) {
-        const tasks = visibleTasksByStatus[TASK_STATUSES[i]];
+        const tasks = visibleTasksByStatus[orderedStatuses[i]];
         if (tasks && tasks.length > 0) {
           handleViewTaskDetails(tasks[0]);
           return;
         }
       }
     } else {
-      for (const status of TASK_STATUSES) {
+      for (const status of orderedStatuses) {
         const tasks = visibleTasksByStatus[status];
         if (tasks && tasks.length > 0) {
           handleViewTaskDetails(tasks[0]);
@@ -812,7 +812,29 @@ export function ProjectTasks() {
         }
       }
     }
-  }, [selectedTask, visibleTasksByStatus, handleViewTaskDetails]);
+  }, [selectedTask, visibleTasksByStatus, orderedStatuses, handleViewTaskDetails]);
+
+  // Get valid target statuses for a given task's current status
+  const getValidTargetStatuses = useCallback(
+    (fromStatus: string): Set<string> => {
+      if (!scheme) {
+        return new Set(orderedStatuses);
+      }
+
+      const validStatuses = new Set<string>();
+      scheme.transitions.forEach((transition) => {
+        if (
+          transition.from_status === fromStatus ||
+          transition.from_status === '*'
+        ) {
+          validStatuses.add(transition.to_status);
+        }
+      });
+
+      return validStatuses;
+    },
+    [scheme, orderedStatuses]
+  );
 
   const handleDragEnd = useCallback(
     async (event: DragEndEvent) => {
@@ -829,17 +851,15 @@ export function ProjectTasks() {
       if (currentStatus === newStatus) return;
 
       if (scheme) {
-        const isValidTransition = scheme.transitions.some(
-          (t) => t.from_status === currentStatus && t.to_status === newStatus
-        );
-        if (!isValidTransition) return;
+        const validTargets = getValidTargetStatuses(currentStatus);
+        if (!validTargets.has(newStatus)) return;
       }
 
       try {
         await tasksApi.update(draggedTaskId, {
           title: task.title,
           description: task.description,
-          status: newStatus as TaskStatus,
+          status: newStatus,
           parent_workspace_id: task.parent_workspace_id,
           image_ids: null,
         });
@@ -941,6 +961,8 @@ export function ProjectTasks() {
           onCreateTask={handleCreateNewTask}
           projectId={projectId!}
           scheme={scheme}
+          selectedTask={selectedTask}
+          getValidTargetStatuses={getValidTargetStatuses}
         />
       </div>
     );

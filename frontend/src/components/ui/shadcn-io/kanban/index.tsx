@@ -18,7 +18,7 @@ import {
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
-import { type ReactNode, type Ref, type KeyboardEvent } from 'react';
+import { createContext, useContext, type ReactNode, type Ref, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Plus } from 'lucide-react';
@@ -26,6 +26,21 @@ import type { ClientRect } from '@dnd-kit/core';
 import type { Transform } from '@dnd-kit/utilities';
 import { Button } from '../../button';
 export type { DragEndEvent } from '@dnd-kit/core';
+
+type KanbanBoardContextType = {
+  isOver: boolean;
+  isValidDropTarget: boolean;
+};
+
+const KanbanBoardContext = createContext<KanbanBoardContextType | undefined>(undefined);
+
+const useKanbanBoardContext = () => {
+  const context = useContext(KanbanBoardContext);
+  if (!context) {
+    return { isOver: false, isValidDropTarget: true };
+  }
+  return context;
+};
 
 export type Status = {
   id: string;
@@ -45,22 +60,37 @@ export type KanbanBoardProps = {
   id: Status['id'];
   children: ReactNode;
   className?: string;
+  isDragging?: boolean;
+  isValidDropTarget?: boolean;
 };
 
-export const KanbanBoard = ({ id, children, className }: KanbanBoardProps) => {
+export const KanbanBoard = ({
+  id,
+  children,
+  className,
+  isDragging = false,
+  isValidDropTarget = true,
+}: KanbanBoardProps) => {
   const { isOver, setNodeRef } = useDroppable({ id });
 
   return (
-    <div
-      className={cn(
-        'flex min-h-40 flex-col',
-        isOver ? 'outline-primary' : 'outline-black',
-        className
-      )}
-      ref={setNodeRef}
-    >
-      {children}
-    </div>
+    <KanbanBoardContext.Provider value={{ isOver, isValidDropTarget }}>
+      <div
+        className={cn(
+          'flex min-h-40 flex-col',
+          isDragging && !isValidDropTarget ? 'opacity-50 pointer-events-none' : '',
+          className
+        )}
+        style={
+          isOver && isValidDropTarget
+            ? { boxShadow: 'inset 0 0 0 3px rgb(34, 197, 94)' }
+            : undefined
+        }
+        ref={setNodeRef}
+      >
+        {children}
+      </div>
+    </KanbanBoardContext.Provider>
   );
 };
 
@@ -157,6 +187,7 @@ export type KanbanHeaderProps =
 
 export const KanbanHeader = (props: KanbanHeaderProps) => {
   const { t } = useTranslation('tasks');
+  const { isOver, isValidDropTarget } = useKanbanBoardContext();
 
   if ('children' in props) {
     return props.children;
@@ -171,6 +202,10 @@ export const KanbanHeader = (props: KanbanHeaderProps) => {
       )}
       style={{
         backgroundImage: `linear-gradient(${props.color} / 0.15, ${props.color} / 0.15)`,
+        boxShadow:
+          isOver && isValidDropTarget
+            ? 'inset 0 0 0 3px rgb(34, 197, 94)'
+            : undefined,
       }}
     >
       <span className="flex-1 flex items-center gap-2">
@@ -262,12 +297,16 @@ const restrictToFirstScrollableAncestorCustom: Modifier = (args) => {
 export type KanbanProviderProps = {
   children: ReactNode;
   onDragEnd: (event: DragEndEvent) => void;
+  onDragStart?: (event: any) => void;
+  onDragCancel?: (event: any) => void;
   className?: string;
 };
 
 export const KanbanProvider = ({
   children,
   onDragEnd,
+  onDragStart,
+  onDragCancel,
   className,
 }: KanbanProviderProps) => {
   const sensors = useSensors(
@@ -280,6 +319,8 @@ export const KanbanProvider = ({
     <DndContext
       collisionDetection={rectIntersection}
       onDragEnd={onDragEnd}
+      onDragStart={onDragStart}
+      onDragCancel={onDragCancel}
       sensors={sensors}
       modifiers={[restrictToFirstScrollableAncestorCustom]}
     >
