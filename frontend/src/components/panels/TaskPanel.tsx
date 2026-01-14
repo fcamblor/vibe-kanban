@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useProject } from '@/contexts/ProjectContext';
 import { useTaskAttemptsWithSessions } from '@/hooks/useTaskAttempts';
@@ -13,6 +14,7 @@ import { PlusIcon } from 'lucide-react';
 import { CreateAttemptDialog } from '@/components/dialogs/tasks/CreateAttemptDialog';
 import WYSIWYGEditor from '@/components/ui/wysiwyg';
 import { DataTable, type ColumnDef } from '@/components/ui/table';
+import { TransitionButtons } from '@/components/tasks/TransitionButtons';
 
 interface TaskPanelProps {
   task: TaskWithAttemptStatus | null;
@@ -32,6 +34,10 @@ const TaskPanel = ({ task }: TaskPanelProps) => {
 
   const { data: parentAttempt, isLoading: isParentLoading } =
     useTaskAttemptWithSession(task?.parent_workspace_id || undefined);
+
+  const handleTransitionComplete = useCallback(() => {
+    // Refresh attempts list after transition
+  }, []);
 
   const formatTimeAgo = (iso: string) => {
     const d = new Date(iso);
@@ -108,6 +114,13 @@ const TaskPanel = ({ task }: TaskPanelProps) => {
             {descriptionContent && (
               <WYSIWYGEditor value={descriptionContent} disabled />
             )}
+          </div>
+
+          <div className="mt-4 flex-shrink-0">
+            <TransitionButtons
+              task={task}
+              onTransitionComplete={handleTransitionComplete}
+            />
           </div>
 
           <div className="mt-6 flex-shrink-0 space-y-4">
