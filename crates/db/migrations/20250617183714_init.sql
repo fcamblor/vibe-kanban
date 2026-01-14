@@ -14,8 +14,7 @@ CREATE TABLE tasks (
     project_id  BLOB NOT NULL,
     title       TEXT NOT NULL,
     description TEXT,
-    status      TEXT NOT NULL DEFAULT 'todo'
-                   CHECK (status IN ('todo','inprogress','done','cancelled','inreview')),
+    status      TEXT NOT NULL DEFAULT 'todo',
     created_at  TEXT NOT NULL DEFAULT (datetime('now', 'subsec')),
     updated_at  TEXT NOT NULL DEFAULT (datetime('now', 'subsec')),
     FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE

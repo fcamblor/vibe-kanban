@@ -436,7 +436,7 @@ export function ProjectTasks() {
 
     tasks.forEach((task) => {
       // Use workflow_status if available, fall back to status
-      const statusKey = task.workflow_status || normalizeStatus(task.status);
+      const statusKey = task.workflow_status || task.status;
       const sharedTask = task.shared_task_id
         ? sharedTasksById[task.shared_task_id]
         : sharedTasksById[task.id];

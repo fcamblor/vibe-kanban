@@ -1,6 +1,5 @@
 mod config;
 mod publisher;
-mod status;
 
 pub use config::ShareConfig;
 pub use publisher::{SharePublisher, SharedTaskDetails};

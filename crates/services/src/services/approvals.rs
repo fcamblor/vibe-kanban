@@ -9,7 +9,7 @@ use std::{
 use dashmap::DashMap;
 use db::models::{
     execution_process::ExecutionProcess,
-    task::{Task, TaskStatus},
+    task::Task,
 };
 use executors::{
     approvals::ToolCallMetadata,
@@ -176,8 +176,8 @@ impl Approvals {
                 ApprovalStatus::Approved | ApprovalStatus::Denied { .. }
             ) && let Ok(ctx) =
                 ExecutionProcess::load_context(pool, tool_ctx.execution_process_id).await
-                && ctx.task.status == TaskStatus::InReview
-                && let Err(e) = Task::update_status(pool, ctx.task.id, TaskStatus::InProgress).await
+                && ctx.task.status == "inreview"
+                && let Err(e) = Task::update_status(pool, ctx.task.id, "inprogress".to_string()).await
             {
                 tracing::warn!(
                     "Failed to update task status to InProgress after approval response: {}",
@@ -284,8 +284,8 @@ impl Approvals {
 
 pub(crate) async fn ensure_task_in_review(pool: &SqlitePool, execution_process_id: Uuid) {
     if let Ok(ctx) = ExecutionProcess::load_context(pool, execution_process_id).await
-        && ctx.task.status == TaskStatus::InProgress
-        && let Err(e) = Task::update_status(pool, ctx.task.id, TaskStatus::InReview).await
+        && ctx.task.status == "inprogress"
+        && let Err(e) = Task::update_status(pool, ctx.task.id, "inreview".to_string()).await
     {
         tracing::warn!(
             "Failed to update task status to InReview for approval request: {}",

@@ -2,7 +2,7 @@ use db::{
     DBService,
     models::{
         project::Project,
-        task::{CreateTask, Task, TaskStatus},
+        task::{CreateTask, Task},
     },
 };
 use remote::routes::tasks::{
@@ -10,7 +10,7 @@ use remote::routes::tasks::{
 };
 use uuid::Uuid;
 
-use super::{ShareError, status};
+use super::ShareError;
 use crate::services::remote_client::RemoteClient;
 
 #[derive(Clone)]
@@ -25,7 +25,7 @@ pub struct SharedTaskDetails {
     pub project_id: Uuid,
     pub title: String,
     pub description: Option<String>,
-    pub status: TaskStatus,
+    pub status: String,
 }
 
 impl SharePublisher {
@@ -71,7 +71,7 @@ impl SharePublisher {
         let payload = UpdateSharedTaskRequest {
             title: Some(task.title.clone()),
             description: task.description.clone(),
-            status: Some(status::to_remote(&task.status)),
+            status: Some(task.status.clone()),
         };
 
         self.client

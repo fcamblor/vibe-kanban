@@ -22,7 +22,7 @@ use crate::{
         organization_members,
         tasks::{
             AssignTaskData, CreateSharedTaskData, DeleteTaskData, SharedTask, SharedTaskError,
-            SharedTaskRepository, SharedTaskWithUser, TaskStatus, UpdateSharedTaskData,
+            SharedTaskRepository, SharedTaskWithUser, UpdateSharedTaskData,
             ensure_text_size,
         },
         users::{UserData, UserRepository},
@@ -348,7 +348,7 @@ pub struct CreateSharedTaskRequest {
 pub struct UpdateSharedTaskRequest {
     pub title: Option<String>,
     pub description: Option<String>,
-    pub status: Option<TaskStatus>,
+    pub status: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

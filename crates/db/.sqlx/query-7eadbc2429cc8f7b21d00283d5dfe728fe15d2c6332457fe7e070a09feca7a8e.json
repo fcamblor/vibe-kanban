@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id as \"id!: Uuid\", project_id as \"project_id!: Uuid\", title, description, status as \"status!: TaskStatus\", parent_workspace_id as \"parent_workspace_id: Uuid\", shared_task_id as \"shared_task_id: Uuid\", workflow_status, created_at as \"created_at!: DateTime<Utc>\", updated_at as \"updated_at!: DateTime<Utc>\"\n               FROM tasks\n               WHERE shared_task_id = $1\n               LIMIT 1",
+  "query": "SELECT id as \"id!: Uuid\", project_id as \"project_id!: Uuid\", title, description, status as \"status!: String\", parent_workspace_id as \"parent_workspace_id: Uuid\", shared_task_id as \"shared_task_id: Uuid\", workflow_status, created_at as \"created_at!: DateTime<Utc>\", updated_at as \"updated_at!: DateTime<Utc>\"\n               FROM tasks\n               WHERE id = $1",
   "describe": {
     "columns": [
       {
@@ -24,7 +24,7 @@
         "type_info": "Text"
       },
       {
-        "name": "status!: TaskStatus",
+        "name": "status!: String",
         "ordinal": 4,
         "type_info": "Text"
       },
@@ -70,5 +70,5 @@
       false
     ]
   },
-  "hash": "39887859af8190f4ac0305217575da54c31ecd2830499d9efbeee3603c63b8e4"
+  "hash": "7eadbc2429cc8f7b21d00283d5dfe728fe15d2c6332457fe7e070a09feca7a8e"
 }
