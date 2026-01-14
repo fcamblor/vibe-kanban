@@ -7,6 +7,8 @@
         "generalDesc": "Theme, notifications, and preferences",
         "projects": "Projects",
         "projectsDesc": "Project repositories and configuration",
+        "workflows": "Workflow Schemes",
+        "workflowsDesc": "Manage workflow status and transition definitions",
         "repos": "Repositories",
         "reposDesc": "Repository scripts and configuration",
         "agents": "Agents",
