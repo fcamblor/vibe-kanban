@@ -1,4 +1,4 @@
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { useAuth } from '@/hooks';
 import {
   type DragEndEvent,
@@ -36,6 +36,8 @@ interface TaskKanbanBoardProps {
   onCreateTask?: () => void;
   projectId: string;
   scheme?: WorkflowScheme;
+  selectedTask?: TaskWithAttemptStatus | null;
+  getValidTargetStatuses?: (fromStatus: string) => Set<string>;
 }
 
 function TaskKanbanBoard({
@@ -48,8 +50,25 @@ function TaskKanbanBoard({
   onCreateTask,
   projectId,
   scheme,
+  selectedTask,
+  getValidTargetStatuses,
 }: TaskKanbanBoardProps) {
   const { userId } = useAuth();
+  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+
+  // Track drag state
+  const handleDragStart = (event: any) => {
+    setDraggedTaskId(event.active.id as string);
+  };
+
+  const handleDragCancel = () => {
+    setDraggedTaskId(null);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    setDraggedTaskId(null);
+    onDragEnd(event);
+  };
 
   // Determine column order: use scheme statuses if available, else legacy order
   const columnOrder = useMemo(() => {
@@ -76,6 +95,32 @@ function TaskKanbanBoard({
     return statusBoardColors[statusName as TaskStatus] || '#000000';
   };
 
+  // Check if a column is a valid drop target
+  const isColumnDropTarget = (statusName: string): boolean => {
+    // If dragging, use the dragged task's status
+    if (draggedTaskId && getValidTargetStatuses) {
+      const draggedTask = Object.values(columns)
+        .flat()
+        .find((item) => item.type === 'task' && item.task.id === draggedTaskId)?.task;
+
+      if (draggedTask) {
+        const currentStatus = draggedTask.workflow_status || draggedTask.status;
+        if (currentStatus === statusName) return true; // Current status is always valid
+        const validTargets = getValidTargetStatuses(currentStatus);
+        return validTargets.has(statusName);
+      }
+    }
+
+    // Otherwise use selectedTask (click-based selection)
+    if (!selectedTask || !getValidTargetStatuses) return true;
+
+    const currentStatus = selectedTask.workflow_status || selectedTask.status;
+    if (currentStatus === statusName) return true; // Current status is always valid
+
+    const validTargets = getValidTargetStatuses(currentStatus);
+    return validTargets.has(statusName);
+  };
+
   // Get display name for a status
   const getStatusDisplayName = (statusName: string): string => {
     if (scheme?.statuses) {
@@ -89,12 +134,22 @@ function TaskKanbanBoard({
   };
 
   return (
-    <KanbanProvider onDragEnd={onDragEnd}>
+    <KanbanProvider
+      onDragStart={handleDragStart}
+      onDragCancel={handleDragCancel}
+      onDragEnd={handleDragEnd}
+    >
       {columnOrder.map((statusName) => {
         const items = columns[statusName] || [];
+        const isValidTarget = isColumnDropTarget(statusName);
 
         return (
-          <KanbanBoard key={statusName} id={statusName}>
+          <KanbanBoard
+            key={statusName}
+            id={statusName}
+            isDragging={draggedTaskId !== null}
+            isValidDropTarget={isValidTarget}
+          >
             <KanbanHeader
               name={getStatusDisplayName(statusName)}
               color={getStatusColor(statusName)}

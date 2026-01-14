@@ -8,7 +8,6 @@ import { useAssigneeUserNames } from './useAssigneeUserName';
 import { useAutoLinkSharedTasks } from './useAutoLinkSharedTasks';
 import type {
   SharedTask,
-  TaskStatus,
   TaskWithAttemptStatus,
 } from 'shared/types';
 
@@ -28,7 +27,7 @@ export interface UseProjectTasksResult {
   tasksById: Record<string, TaskWithAttemptStatus>;
   tasksByStatus: Record<string, TaskWithAttemptStatus[]>; // Now dynamic from workflow_status
   sharedTasksById: Record<string, SharedTaskRecord>;
-  sharedOnlyByStatus: Record<TaskStatus, SharedTaskRecord[]>;
+  sharedOnlyByStatus: Record<string, SharedTaskRecord[]>;
   isLoading: boolean;
   isConnected: boolean;
   error: string | null;
@@ -146,13 +145,7 @@ export const useProjectTasks = (projectId: string): UseProjectTasksResult => {
   }, [localTasksById]);
 
   const sharedOnlyByStatus = useMemo(() => {
-    const grouped: Record<TaskStatus, SharedTaskRecord[]> = {
-      todo: [],
-      inprogress: [],
-      inreview: [],
-      done: [],
-      cancelled: [],
-    };
+    const grouped: Record<string, SharedTaskRecord[]> = {};
 
     Object.values(sharedTasksById).forEach((sharedTask) => {
       const hasLocal =
@@ -162,7 +155,12 @@ export const useProjectTasks = (projectId: string): UseProjectTasksResult => {
       if (hasLocal) {
         return;
       }
-      grouped[sharedTask.status]?.push(sharedTask);
+
+      const status = sharedTask.status;
+      if (!grouped[status]) {
+        grouped[status] = [];
+      }
+      grouped[status].push(sharedTask);
     });
 
     (Object.values(grouped) as SharedTaskRecord[][]).forEach((list) => {
