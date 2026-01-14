@@ -14,6 +14,7 @@ import { showcases } from '@/config/showcases';
 import { useUserSystem } from '@/components/ConfigProvider';
 import { useWorkspaceCount } from '@/hooks/useWorkspaceCount';
 import { usePostHog } from 'posthog-js/react';
+import { useWorkflowScheme } from '@/hooks/useWorkflowScheme';
 
 import { useSearch } from '@/contexts/SearchContext';
 import { useProject } from '@/contexts/ProjectContext';
@@ -156,6 +157,8 @@ export function ProjectTasks() {
     isLoading: projectLoading,
     error: projectError,
   } = useProject();
+
+  const { scheme } = useWorkflowScheme();
 
   useEffect(() => {
     enableScope(Scope.KANBAN);
@@ -406,13 +409,19 @@ export function ProjectTasks() {
   }, [selectedSharedTaskId, sharedTasksById, showSharedTasks, userId]);
 
   const kanbanColumns = useMemo(() => {
-    const columns: Record<TaskStatus, KanbanColumnItem[]> = {
-      todo: [],
-      inprogress: [],
-      inreview: [],
-      done: [],
-      cancelled: [],
-    };
+    const columns: Record<string, KanbanColumnItem[]> = {};
+
+    // Initialize columns from scheme or legacy statuses
+    if (scheme?.statuses) {
+      scheme.statuses.forEach((status) => {
+        columns[status.name] = [];
+      });
+    } else {
+      // Fallback to legacy statuses
+      TASK_STATUSES.forEach((status) => {
+        columns[status] = [];
+      });
+    }
 
     const matchesSearch = (
       title: string,
@@ -428,7 +437,8 @@ export function ProjectTasks() {
     };
 
     tasks.forEach((task) => {
-      const statusKey = normalizeStatus(task.status);
+      // Use workflow_status if available, fall back to status
+      const statusKey = task.workflow_status || normalizeStatus(task.status);
       const sharedTask = task.shared_task_id
         ? sharedTasksById[task.shared_task_id]
         : sharedTasksById[task.id];
@@ -447,6 +457,10 @@ export function ProjectTasks() {
         return;
       }
 
+      if (!columns[statusKey]) {
+        columns[statusKey] = [];
+      }
+
       columns[statusKey].push({
         type: 'task',
         task,
@@ -454,9 +468,8 @@ export function ProjectTasks() {
       });
     });
 
-    (
-      Object.entries(sharedOnlyByStatus) as [TaskStatus, SharedTaskRecord[]][]
-    ).forEach(([status, items]) => {
+    // Handle shared tasks
+    Object.entries(sharedOnlyByStatus).forEach(([status, items]) => {
       if (!columns[status]) {
         columns[status] = [];
       }
@@ -482,8 +495,9 @@ export function ProjectTasks() {
       return new Date(createdAt).getTime();
     };
 
-    TASK_STATUSES.forEach((status) => {
-      columns[status].sort((a, b) => getTimestamp(b) - getTimestamp(a));
+    // Sort all columns by timestamp (newest first)
+    Object.values(columns).forEach((items) => {
+      items.sort((a, b) => getTimestamp(b) - getTimestamp(a));
     });
 
     return columns;
@@ -495,6 +509,7 @@ export function ProjectTasks() {
     sharedTasksById,
     showSharedTasks,
     userId,
+    scheme?.statuses,
   ]);
 
   const visibleTasksByStatus = useMemo(() => {
@@ -805,15 +820,26 @@ export function ProjectTasks() {
       if (!over || !active.data.current) return;
 
       const draggedTaskId = active.id as string;
-      const newStatus = over.id as Task['status'];
+      const newStatus = over.id as string;
       const task = tasksById[draggedTaskId];
-      if (!task || task.status === newStatus) return;
+      if (!task) return;
+
+      // Check if transition is valid
+      const currentStatus = task.workflow_status || task.status;
+      if (currentStatus === newStatus) return;
+
+      if (scheme) {
+        const isValidTransition = scheme.transitions.some(
+          (t) => t.from_status === currentStatus && t.to_status === newStatus
+        );
+        if (!isValidTransition) return;
+      }
 
       try {
         await tasksApi.update(draggedTaskId, {
           title: task.title,
           description: task.description,
-          status: newStatus,
+          status: newStatus as TaskStatus,
           parent_workspace_id: task.parent_workspace_id,
           image_ids: null,
         });
@@ -821,8 +847,9 @@ export function ProjectTasks() {
         console.error('Failed to update task status:', err);
       }
     },
-    [tasksById]
+    [tasksById, scheme]
   );
+
 
   const getSharedTask = useCallback(
     (task: Task | null | undefined) => {
@@ -913,6 +940,7 @@ export function ProjectTasks() {
           selectedSharedTaskId={selectedSharedTaskId}
           onCreateTask={handleCreateNewTask}
           projectId={projectId!}
+          scheme={scheme}
         />
       </div>
     );

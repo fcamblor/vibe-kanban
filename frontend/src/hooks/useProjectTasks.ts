@@ -26,7 +26,7 @@ type TasksState = {
 export interface UseProjectTasksResult {
   tasks: TaskWithAttemptStatus[];
   tasksById: Record<string, TaskWithAttemptStatus>;
-  tasksByStatus: Record<TaskStatus, TaskWithAttemptStatus[]>;
+  tasksByStatus: Record<string, TaskWithAttemptStatus[]>; // Now dynamic from workflow_status
   sharedTasksById: Record<string, SharedTaskRecord>;
   sharedOnlyByStatus: Record<TaskStatus, SharedTaskRecord[]>;
   isLoading: boolean;
@@ -117,16 +117,15 @@ export const useProjectTasks = (projectId: string): UseProjectTasksResult => {
 
   const { tasks, tasksById, tasksByStatus } = useMemo(() => {
     const merged: Record<string, TaskWithAttemptStatus> = { ...localTasksById };
-    const byStatus: Record<TaskStatus, TaskWithAttemptStatus[]> = {
-      todo: [],
-      inprogress: [],
-      inreview: [],
-      done: [],
-      cancelled: [],
-    };
+    const byStatus: Record<string, TaskWithAttemptStatus[]> = {};
 
     Object.values(merged).forEach((task) => {
-      byStatus[task.status]?.push(task);
+      // Use workflow_status if available, fall back to legacy status
+      const statusKey = task.workflow_status || task.status;
+      if (!byStatus[statusKey]) {
+        byStatus[statusKey] = [];
+      }
+      byStatus[statusKey].push(task);
     });
 
     const sorted = Object.values(merged).sort(

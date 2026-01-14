@@ -91,6 +91,7 @@ import {
   Workspace,
   StartReviewRequest,
   ReviewError,
+  WorkflowScheme,
 } from 'shared/types';
 import type { WorkspaceWithSession } from '@/types/attempt';
 import { createWorkspaceWithSession } from '@/types/attempt';
@@ -1387,5 +1388,35 @@ export const queueApi = {
   getStatus: async (sessionId: string): Promise<QueueStatus> => {
     const response = await makeRequest(`/api/sessions/${sessionId}/queue`);
     return handleApiResponse<QueueStatus>(response);
+  },
+};
+
+export const workflowSchemesApi = {
+  /**
+   * Get all workflow schemes
+   */
+  getAll: async (): Promise<WorkflowScheme[]> => {
+    const response = await makeRequest('/api/workflow-schemes');
+    return handleApiResponse<WorkflowScheme[]>(response);
+  },
+
+  /**
+   * Get a specific workflow scheme by ID
+   */
+  getById: async (id: string): Promise<WorkflowScheme> => {
+    const response = await makeRequest(`/api/workflow-schemes/${id}`);
+    return handleApiResponse<WorkflowScheme>(response);
+  },
+
+  /**
+   * Get the default workflow scheme (used as fallback)
+   */
+  getDefault: async (): Promise<WorkflowScheme> => {
+    const schemes = await workflowSchemesApi.getAll();
+    const defaultScheme = schemes.find((s) => s.is_default);
+    if (!defaultScheme) {
+      throw new ApiError('No default workflow scheme found', 500);
+    }
+    return defaultScheme;
   },
 };

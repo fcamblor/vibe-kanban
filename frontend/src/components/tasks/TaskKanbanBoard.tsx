@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import { useAuth } from '@/hooks';
 import {
   type DragEndEvent,
@@ -8,7 +8,7 @@ import {
   KanbanProvider,
 } from '@/components/ui/shadcn-io/kanban';
 import { TaskCard } from './TaskCard';
-import type { TaskStatus, TaskWithAttemptStatus } from 'shared/types';
+import type { TaskStatus, TaskWithAttemptStatus, WorkflowScheme } from 'shared/types';
 import { statusBoardColors, statusLabels } from '@/utils/statusLabels';
 import type { SharedTaskRecord } from '@/hooks/useProjectTasks';
 import { SharedTaskCard } from './SharedTaskCard';
@@ -24,7 +24,7 @@ export type KanbanColumnItem =
       task: SharedTaskRecord;
     };
 
-export type KanbanColumns = Record<TaskStatus, KanbanColumnItem[]>;
+export type KanbanColumns = Record<string, KanbanColumnItem[]>;
 
 interface TaskKanbanBoardProps {
   columns: KanbanColumns;
@@ -35,6 +35,7 @@ interface TaskKanbanBoardProps {
   selectedSharedTaskId?: string | null;
   onCreateTask?: () => void;
   projectId: string;
+  scheme?: WorkflowScheme;
 }
 
 function TaskKanbanBoard({
@@ -46,18 +47,56 @@ function TaskKanbanBoard({
   selectedSharedTaskId,
   onCreateTask,
   projectId,
+  scheme,
 }: TaskKanbanBoardProps) {
   const { userId } = useAuth();
 
+  // Determine column order: use scheme statuses if available, else legacy order
+  const columnOrder = useMemo(() => {
+    if (scheme?.statuses) {
+      return scheme.statuses
+        .sort((a, b) => a.position - b.position)
+        .map((s) => s.name);
+    }
+    // Fallback to legacy order if no scheme
+    return ['todo', 'inprogress', 'inreview', 'done', 'cancelled'];
+  }, [scheme?.statuses]);
+
+  // Get color for a status name
+  const getStatusColor = (statusName: string): string => {
+    if (scheme?.statuses) {
+      const status = scheme.statuses.find((s) => s.name === statusName);
+      if (status && status.color) {
+        // Color is CSS variable name like "--info"
+        return `var(${status.color})`;
+      }
+    }
+    // Fallback to legacy color lookup
+    return statusBoardColors[statusName as TaskStatus] || '#000000';
+  };
+
+  // Get display name for a status
+  const getStatusDisplayName = (statusName: string): string => {
+    if (scheme?.statuses) {
+      const status = scheme.statuses.find((s) => s.name === statusName);
+      if (status) {
+        return status.display_name;
+      }
+    }
+    // Fallback to legacy label lookup
+    return statusLabels[statusName as TaskStatus] || statusName;
+  };
+
   return (
     <KanbanProvider onDragEnd={onDragEnd}>
-      {Object.entries(columns).map(([status, items]) => {
-        const statusKey = status as TaskStatus;
+      {columnOrder.map((statusName) => {
+        const items = columns[statusName] || [];
+
         return (
-          <KanbanBoard key={status} id={statusKey}>
+          <KanbanBoard key={statusName} id={statusName}>
             <KanbanHeader
-              name={statusLabels[statusKey]}
-              color={statusBoardColors[statusKey]}
+              name={getStatusDisplayName(statusName)}
+              color={getStatusColor(statusName)}
               onAddTask={onCreateTask}
             />
             <KanbanCards>
@@ -74,7 +113,7 @@ function TaskKanbanBoard({
                       key={item.task.id}
                       task={item.task}
                       index={index}
-                      status={statusKey}
+                      status={statusName as TaskStatus}
                       onViewDetails={onViewTaskDetails}
                       isOpen={selectedTaskId === item.task.id}
                       projectId={projectId}
@@ -91,7 +130,7 @@ function TaskKanbanBoard({
                     key={`shared-${item.task.id}`}
                     task={sharedTask}
                     index={index}
-                    status={statusKey}
+                    status={statusName as TaskStatus}
                     isSelected={selectedSharedTaskId === item.task.id}
                     onViewDetails={onViewSharedTask}
                   />
