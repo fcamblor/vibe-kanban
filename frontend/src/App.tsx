@@ -19,6 +19,7 @@ import {
   ProjectSettings,
   ReposSettings,
   SettingsLayout,
+  WorkflowSettings,
 } from '@/pages/settings/';
 import { UserSystemProvider, useUserSystem } from '@/components/ConfigProvider';
 import { ThemeProvider } from '@/components/ThemeProvider';
@@ -158,6 +159,7 @@ function AppContent() {
                 <Route index element={<Navigate to="general" replace />} />
                 <Route path="general" element={<GeneralSettings />} />
                 <Route path="projects" element={<ProjectSettings />} />
+                <Route path="workflows" element={<WorkflowSettings />} />
                 <Route path="repos" element={<ReposSettings />} />
                 <Route
                   path="organizations"

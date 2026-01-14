@@ -8,6 +8,7 @@ import {
   FolderOpen,
   Building2,
   GitBranch,
+  GitMerge,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -25,6 +26,10 @@ const settingsNavigation = [
   {
     path: 'projects',
     icon: FolderOpen,
+  },
+  {
+    path: 'workflows',
+    icon: GitMerge,
   },
   {
     path: 'repos',

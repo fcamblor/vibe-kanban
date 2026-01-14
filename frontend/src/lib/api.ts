@@ -1419,4 +1419,41 @@ export const workflowSchemesApi = {
     }
     return defaultScheme;
   },
+
+  /**
+   * Create a new workflow scheme
+   */
+  create: async (
+    data: Omit<WorkflowScheme, 'id' | 'created_at' | 'updated_at'>
+  ): Promise<WorkflowScheme> => {
+    const response = await makeRequest('/api/workflow-schemes', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    return handleApiResponse<WorkflowScheme>(response);
+  },
+
+  /**
+   * Update an existing workflow scheme
+   */
+  update: async (
+    id: string,
+    data: Partial<Omit<WorkflowScheme, 'id' | 'created_at' | 'updated_at'>>
+  ): Promise<WorkflowScheme> => {
+    const response = await makeRequest(`/api/workflow-schemes/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+    return handleApiResponse<WorkflowScheme>(response);
+  },
+
+  /**
+   * Delete a workflow scheme
+   */
+  delete: async (id: string): Promise<void> => {
+    const response = await makeRequest(`/api/workflow-schemes/${id}`, {
+      method: 'DELETE',
+    });
+    return handleApiResponse<void>(response);
+  },
 };
