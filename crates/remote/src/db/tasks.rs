@@ -13,18 +13,6 @@ use super::{
 
 pub const MAX_SHARED_TASK_TEXT_BYTES: usize = 50 * 1024;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, sqlx::Type, TS)]
-#[serde(rename_all = "lowercase")]
-#[sqlx(type_name = "task_status", rename_all = "lowercase")]
-#[ts(export)]
-pub enum TaskStatus {
-    Todo,
-    InProgress,
-    InReview,
-    Done,
-    Cancelled,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SharedTaskWithUser {
     pub task: SharedTask,
@@ -48,7 +36,7 @@ pub struct SharedTask {
     pub deleted_by_user_id: Option<Uuid>,
     pub title: String,
     pub description: Option<String>,
-    pub status: TaskStatus,
+    pub status: String,
     pub deleted_at: Option<DateTime<Utc>>,
     pub shared_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
@@ -68,7 +56,7 @@ pub struct CreateSharedTaskData {
 pub struct UpdateSharedTaskData {
     pub title: Option<String>,
     pub description: Option<String>,
-    pub status: Option<TaskStatus>,
+    pub status: Option<String>,
     pub acting_user_id: Uuid,
 }
 
@@ -125,7 +113,7 @@ impl<'a> SharedTaskRepository<'a> {
                 deleted_by_user_id  AS "deleted_by_user_id?: Uuid",
                 title               AS "title!",
                 description         AS "description?",
-                status              AS "status!: TaskStatus",
+                status              AS "status!",
                 deleted_at          AS "deleted_at?",
                 shared_at           AS "shared_at?",
                 created_at          AS "created_at!",
@@ -188,7 +176,7 @@ impl<'a> SharedTaskRepository<'a> {
                       deleted_by_user_id AS "deleted_by_user_id?: Uuid",
                       title              AS "title!",
                       description        AS "description?",
-                      status             AS "status!: TaskStatus",
+                      status             AS "status!",
                       deleted_at         AS "deleted_at?",
                       shared_at          AS "shared_at?",
                       created_at         AS "created_at!",
@@ -240,7 +228,7 @@ impl<'a> SharedTaskRepository<'a> {
             t.deleted_by_user_id AS "deleted_by_user_id?: Uuid",
             t.title             AS "title!",
             t.description       AS "description?",
-            t.status            AS "status!: TaskStatus",
+            t.status            AS "status!",
             t.deleted_at        AS "deleted_at?",
             t.shared_at         AS "shared_at?",
             t.created_at        AS "created_at!",
@@ -249,7 +237,7 @@ impl<'a> SharedTaskRepository<'a> {
             task_id,
             data.title,
             data.description,
-            data.status as Option<TaskStatus>,
+            data.status,
             data.acting_user_id
         )
         .fetch_optional(&mut *tx)
@@ -291,7 +279,7 @@ impl<'a> SharedTaskRepository<'a> {
             t.deleted_by_user_id AS "deleted_by_user_id?: Uuid",
             t.title             AS "title!",
             t.description       AS "description?",
-            t.status            AS "status!: TaskStatus",
+            t.status            AS "status!",
             t.deleted_at        AS "deleted_at?",
             t.shared_at         AS "shared_at?",
             t.created_at        AS "created_at!",
@@ -339,7 +327,7 @@ impl<'a> SharedTaskRepository<'a> {
             t.deleted_by_user_id AS "deleted_by_user_id?: Uuid",
             t.title             AS "title!",
             t.description       AS "description?",
-            t.status            AS "status!: TaskStatus",
+            t.status            AS "status!",
             t.deleted_at        AS "deleted_at?",
             t.shared_at         AS "shared_at?",
             t.created_at        AS "created_at!",

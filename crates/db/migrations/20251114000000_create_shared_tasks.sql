@@ -5,8 +5,7 @@ CREATE TABLE IF NOT EXISTS shared_tasks (
     remote_project_id   BLOB NOT NULL,
     title               TEXT NOT NULL,
     description         TEXT,
-    status              TEXT NOT NULL DEFAULT 'todo'
-                        CHECK (status IN ('todo','inprogress','done','cancelled','inreview')),
+    status              TEXT NOT NULL DEFAULT 'todo',
     assignee_user_id    BLOB,
     assignee_first_name TEXT,
     assignee_last_name  TEXT,

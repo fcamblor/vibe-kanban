@@ -20,7 +20,7 @@ use db::{
         execution_process_repo_state::ExecutionProcessRepoState,
         repo::Repo,
         scratch::{DraftFollowUpData, Scratch, ScratchType},
-        task::{Task, TaskStatus},
+        task::Task,
         workspace::Workspace,
         workspace_repo::WorkspaceRepo,
     },
@@ -1242,7 +1242,7 @@ impl ContainerService for LocalContainerService {
                 ExecutionProcessRunReason::DevServer
             )
         {
-            match Task::update_status(&self.db.pool, ctx.task.id, TaskStatus::InReview).await {
+            match Task::update_status(&self.db.pool, ctx.task.id, "inreview".to_string()).await {
                 Ok(_) => {
                     if let Some(publisher) = self.share_publisher()
                         && let Err(err) = publisher.update_shared_task_by_id(ctx.task.id).await

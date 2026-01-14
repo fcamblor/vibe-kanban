@@ -4,7 +4,7 @@ use db::models::{
     project::Project,
     repo::Repo,
     tag::Tag,
-    task::{CreateTask, Task, TaskStatus, TaskWithAttemptStatus, UpdateTask},
+    task::{CreateTask, Task, TaskWithAttemptStatus, UpdateTask},
     workspace::{Workspace, WorkspaceContext},
 };
 use executors::{executors::BaseCodingAgent, profile::ExecutorProfileId};
@@ -622,20 +622,6 @@ impl TaskServer {
             limit,
         }): Parameters<ListTasksRequest>,
     ) -> Result<CallToolResult, ErrorData> {
-        let status_filter = if let Some(ref status_str) = status {
-            match TaskStatus::from_str(status_str) {
-                Ok(s) => Some(s),
-                Err(_) => {
-                    return Self::err(
-                        "Invalid status filter. Valid values: 'todo', 'inprogress', 'inreview', 'done', 'cancelled'".to_string(),
-                        Some(status_str.to_string()),
-                    );
-                }
-            }
-        } else {
-            None
-        };
-
         let url = self.url(&format!("/api/tasks?project_id={}", project_id));
         let all_tasks: Vec<TaskWithAttemptStatus> =
             match self.send_json(self.client.get(&url)).await {
@@ -645,7 +631,7 @@ impl TaskServer {
 
         let task_limit = limit.unwrap_or(50).max(0) as usize;
         let filtered = all_tasks.into_iter().filter(|t| {
-            if let Some(ref want) = status_filter {
+            if let Some(ref want) = status {
                 &t.status == want
             } else {
                 true
@@ -761,19 +747,6 @@ impl TaskServer {
             status,
         }): Parameters<UpdateTaskRequest>,
     ) -> Result<CallToolResult, ErrorData> {
-        let status = if let Some(ref status_str) = status {
-            match TaskStatus::from_str(status_str) {
-                Ok(_s) => Some(status_str.to_string()),
-                Err(_) => {
-                    return Self::err(
-                        "Invalid status filter. Valid values: 'todo', 'inprogress', 'inreview', 'done', 'cancelled'".to_string(),
-                        Some(status_str.to_string()),
-                    );
-                }
-            }
-        } else {
-            None
-        };
 
         // Expand @tagname references in description
         let expanded_description = match description {

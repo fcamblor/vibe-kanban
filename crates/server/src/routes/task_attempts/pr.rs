@@ -10,7 +10,7 @@ use db::models::{
     merge::{Merge, MergeStatus},
     repo::{Repo, RepoError},
     session::{CreateSession, Session},
-    task::{Task, TaskStatus},
+    task::Task,
     workspace::{Workspace, WorkspaceError},
     workspace_repo::WorkspaceRepo,
 };
@@ -482,7 +482,7 @@ pub async fn attach_existing_pr(
 
         // If PR is merged, mark task as done and archive workspace
         if matches!(pr_info.status, MergeStatus::Merged) {
-            Task::update_status(pool, task.id, TaskStatus::Done).await?;
+            Task::update_status(pool, task.id, "done".to_string()).await?;
             if !workspace.pinned {
                 Workspace::set_archived(pool, workspace.id, true).await?;
             }

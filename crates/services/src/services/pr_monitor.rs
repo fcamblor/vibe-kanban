@@ -4,7 +4,7 @@ use db::{
     DBService,
     models::{
         merge::{Merge, MergeStatus, PrMerge},
-        task::{Task, TaskStatus},
+        task::Task,
         workspace::{Workspace, WorkspaceError},
     },
 };
@@ -123,7 +123,7 @@ impl PrMonitorService {
                     "PR #{} was merged, updating task {} to done and archiving workspace",
                     pr_merge.pr_info.number, workspace.task_id
                 );
-                Task::update_status(&self.db.pool, workspace.task_id, TaskStatus::Done).await?;
+                Task::update_status(&self.db.pool, workspace.task_id, "done".to_string()).await?;
 
                 // Archive workspace unless pinned
                 if !workspace.pinned {

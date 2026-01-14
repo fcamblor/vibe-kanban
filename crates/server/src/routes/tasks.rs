@@ -15,7 +15,7 @@ use axum::{
 use db::models::{
     image::TaskImage,
     repo::{Repo, RepoError},
-    task::{CreateTask, Task, TaskStatus, TaskWithAttemptStatus, UpdateTask},
+    task::{CreateTask, Task, TaskWithAttemptStatus, UpdateTask},
     workspace::{CreateWorkspace, Workspace},
     workspace_repo::{CreateWorkspaceRepo, WorkspaceRepo},
 };
@@ -263,24 +263,8 @@ pub async fn update_task(
         None => existing_task.description,      // Field omitted = keep existing
     };
 
-    // Handle status - support both legacy enum values and custom workflow statuses
-    let status = if let Some(status_str) = &payload.status {
-        // Try to parse as legacy TaskStatus enum value
-        match status_str.to_lowercase().as_str() {
-            "todo" => TaskStatus::Todo,
-            "inprogress" => TaskStatus::InProgress,
-            "inreview" => TaskStatus::InReview,
-            "done" => TaskStatus::Done,
-            "cancelled" => TaskStatus::Cancelled,
-            _ => {
-                // For custom workflow statuses, map to a default legacy status
-                // This maintains backward compatibility while allowing workflow statuses
-                TaskStatus::default()
-            }
-        }
-    } else {
-        existing_task.status
-    };
+    // Handle status - accept any string value for workflow statuses
+    let status = payload.status.unwrap_or(existing_task.status);
 
     let parent_workspace_id = payload
         .parent_workspace_id

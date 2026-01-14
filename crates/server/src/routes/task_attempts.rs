@@ -29,7 +29,7 @@ use db::models::{
     project::SearchResult,
     repo::{Repo, RepoError},
     session::{CreateSession, Session},
-    task::{Task, TaskRelationships, TaskStatus},
+    task::{Task, TaskRelationships},
     workspace::{CreateWorkspace, Workspace, WorkspaceError},
     workspace_repo::{CreateWorkspaceRepo, RepoWithTargetBranch, WorkspaceRepo},
 };
@@ -469,7 +469,7 @@ pub async fn merge_task_attempt(
         &merge_commit_id,
     )
     .await?;
-    Task::update_status(pool, task.id, TaskStatus::Done).await?;
+    Task::update_status(pool, task.id, "done".to_string()).await?;
     if !workspace.pinned {
         Workspace::set_archived(pool, workspace.id, true).await?;
     }

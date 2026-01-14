@@ -20,7 +20,7 @@ use db::{
         },
         repo::Repo,
         session::{CreateSession, Session, SessionError},
-        task::{Task, TaskStatus},
+        task::Task,
         workspace::{Workspace, WorkspaceError},
         workspace_repo::WorkspaceRepo,
     },
@@ -169,7 +169,7 @@ pub trait ContainerService {
         share_publisher: Option<&SharePublisher>,
         ctx: &ExecutionContext,
     ) {
-        match Task::update_status(&self.db().pool, ctx.task.id, TaskStatus::InReview).await {
+        match Task::update_status(&self.db().pool, ctx.task.id, "inreview".to_string()).await {
             Ok(_) => {
                 if let Some(publisher) = share_publisher
                     && let Err(err) = publisher.update_shared_task_by_id(ctx.task.id).await
@@ -276,7 +276,7 @@ pub trait ContainerService {
                     Workspace::find_by_id(&self.db().pool, session.workspace_id).await
                 && let Ok(Some(task)) = workspace.parent_task(&self.db().pool).await
             {
-                match Task::update_status(&self.db().pool, task.id, TaskStatus::InReview).await {
+                match Task::update_status(&self.db().pool, task.id, "inreview".to_string()).await {
                     Ok(_) => {
                         if let Some(publisher) = self.share_publisher()
                             && let Err(err) = publisher.update_shared_task_by_id(task.id).await
@@ -975,10 +975,10 @@ pub trait ContainerService {
             .parent_task(&self.db().pool)
             .await?
             .ok_or(SqlxError::RowNotFound)?;
-        if task.status != TaskStatus::InProgress
+        if task.status != "inprogress"
             && run_reason != &ExecutionProcessRunReason::DevServer
         {
-            Task::update_status(&self.db().pool, task.id, TaskStatus::InProgress).await?;
+            Task::update_status(&self.db().pool, task.id, "inprogress".to_string()).await?;
 
             if let Some(publisher) = self.share_publisher()
                 && let Err(err) = publisher.update_shared_task_by_id(task.id).await
@@ -1079,7 +1079,7 @@ pub trait ContainerService {
                     update_error
                 );
             }
-            Task::update_status(&self.db().pool, task.id, TaskStatus::InReview).await?;
+            Task::update_status(&self.db().pool, task.id, "inreview".to_string()).await?;
 
             // Emit stderr error message
             let log_message = LogMsg::Stderr(format!("Failed to start execution: {start_error}"));
