@@ -170,13 +170,13 @@ export const KanbanHeader = (props: KanbanHeaderProps) => {
         props.className
       )}
       style={{
-        backgroundImage: `linear-gradient(hsl(var(${props.color}) / 0.03), hsl(var(${props.color}) / 0.03))`,
+        backgroundImage: `linear-gradient(${props.color} / 0.15, ${props.color} / 0.15)`,
       }}
     >
       <span className="flex-1 flex items-center gap-2">
         <div
           className="h-2 w-2 rounded-full"
-          style={{ backgroundColor: `hsl(var(${props.color}))` }}
+          style={{ backgroundColor: props.color }}
         />
 
         <p className="m-0 text-sm">{props.name}</p>

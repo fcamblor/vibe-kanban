@@ -33,7 +33,7 @@ VALUES (
       {
         "name": "todo",
         "display_name": "To Do",
-        "color": "--neutral-foreground",
+        "color": "var(--neutral-foreground)",
         "position": 0,
         "is_initial": true,
         "is_terminal": false,
@@ -43,7 +43,7 @@ VALUES (
       {
         "name": "inprogress",
         "display_name": "In Progress",
-        "color": "--info",
+        "color": "var(--info)",
         "position": 1,
         "is_initial": false,
         "is_terminal": false,
@@ -53,7 +53,7 @@ VALUES (
       {
         "name": "inreview",
         "display_name": "In Review",
-        "color": "--warning",
+        "color": "var(--warning)",
         "position": 2,
         "is_initial": false,
         "is_terminal": false,
@@ -63,7 +63,7 @@ VALUES (
       {
         "name": "done",
         "display_name": "Done",
-        "color": "--success",
+        "color": "var(--success)",
         "position": 3,
         "is_initial": false,
         "is_terminal": true,
@@ -73,7 +73,7 @@ VALUES (
       {
         "name": "cancelled",
         "display_name": "Cancelled",
-        "color": "--destructive",
+        "color": "var(--destructive)",
         "position": 4,
         "is_initial": false,
         "is_terminal": true,

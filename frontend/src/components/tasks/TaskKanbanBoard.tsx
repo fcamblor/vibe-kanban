@@ -67,8 +67,9 @@ function TaskKanbanBoard({
     if (scheme?.statuses) {
       const status = scheme.statuses.find((s) => s.name === statusName);
       if (status && status.color) {
-        // Color is CSS variable name like "--info"
-        return `var(${status.color})`;
+        // Use color directly - can be any CSS expression
+        // (rgba, hsl, hex, or var(...) with CSS variable)
+        return status.color;
       }
     }
     // Fallback to legacy color lookup
