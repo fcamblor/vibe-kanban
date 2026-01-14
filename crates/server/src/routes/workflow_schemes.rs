@@ -3,7 +3,7 @@ use axum::{
     extract::State,
     middleware::from_fn_with_state,
     response::Json as ResponseJson,
-    routing::{get, post},
+    routing::{delete, get, post, put},
 };
 use chrono::Utc;
 use db::models::workflow_scheme::{

@@ -1,5 +1,6 @@
 {
-  "theme": "light",
+  "config_version": 8,
+  "theme": "LIGHT",
   "executor": {
     "type": "claude"
   },
