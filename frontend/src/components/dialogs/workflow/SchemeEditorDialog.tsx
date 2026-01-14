@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -41,6 +41,18 @@ export function SchemeEditorDialog({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  // Update form fields when scheme changes (e.g., when editing a different scheme)
+  useEffect(() => {
+    if (isOpen) {
+      setName(scheme?.name || '');
+      setDescription(scheme?.description || '');
+      setStatusesJson(JSON.stringify(scheme?.statuses || [], null, 2));
+      setTransitionsJson(JSON.stringify(scheme?.transitions || [], null, 2));
+      setIsDefault(scheme?.is_default || false);
+      setError(null);
+    }
+  }, [scheme, isOpen]);
+
   // Compute diagram data for preview
   const diagramData = useMemo(() => {
     try {
@@ -57,7 +69,7 @@ export function SchemeEditorDialog({
     return { statuses: [], transitions: [] };
   }, [statusesJson, transitionsJson]);
 
-  const validateJson = useCallback(): {
+  const validateJson = useCallback((): {
     statuses: Array<{
       name: string;
       display_name: string;
@@ -157,9 +169,18 @@ export function SchemeEditorDialog({
     }
   };
 
+  const handleDialogOpenChange = (open: boolean) => {
+    // Only allow closing when explicitly requested (via Cancel/Save buttons)
+    // ESC and backdrop clicks are ignored
+    if (open) {
+      onOpenChange(true);
+    }
+    // When open is false (ESC or backdrop), do nothing
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+    <Dialog open={isOpen} onOpenChange={handleDialogOpenChange} className="!w-[80vw] !max-w-none">
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {scheme ? 'Edit Workflow Scheme' : 'Create Workflow Scheme'}
@@ -291,7 +312,10 @@ export function SchemeEditorDialog({
         <DialogFooter>
           <Button
             variant="outline"
-            onClick={() => onOpenChange(false)}
+            onClick={() => {
+              // Directly close without triggering handleDialogOpenChange
+              onOpenChange(false);
+            }}
             disabled={saving}
           >
             Cancel

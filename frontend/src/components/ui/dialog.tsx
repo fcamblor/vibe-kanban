@@ -116,8 +116,8 @@ const Dialog = React.forwardRef<
       <div
         ref={ref}
         className={cn(
-          'relative z-[9999] flex flex-col w-full max-w-xl gap-4 bg-primary p-6 shadow-lg duration-200 sm:rounded-lg my-8',
-          className
+          'relative z-[9999] flex flex-col w-full gap-4 bg-primary p-6 shadow-lg duration-200 sm:rounded-lg my-8',
+          className || 'max-w-xl'
         )}
         {...props}
       >
