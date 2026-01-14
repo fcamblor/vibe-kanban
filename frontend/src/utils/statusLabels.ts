@@ -1,6 +1,4 @@
-import { TaskStatus } from 'shared/types';
-
-export const statusLabels: Record<TaskStatus, string> = {
+export const statusLabels: Record<string, string> = {
   todo: 'To Do',
   inprogress: 'In Progress',
   inreview: 'In Review',
@@ -8,7 +6,7 @@ export const statusLabels: Record<TaskStatus, string> = {
   cancelled: 'Cancelled',
 };
 
-export const statusBoardColors: Record<TaskStatus, string> = {
+export const statusBoardColors: Record<string, string> = {
   todo: '--neutral-foreground',
   inprogress: '--info',
   inreview: '--warning',

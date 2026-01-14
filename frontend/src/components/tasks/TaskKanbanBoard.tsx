@@ -8,7 +8,7 @@ import {
   KanbanProvider,
 } from '@/components/ui/shadcn-io/kanban';
 import { TaskCard } from './TaskCard';
-import type { TaskStatus, TaskWithAttemptStatus, WorkflowScheme } from 'shared/types';
+import type { TaskWithAttemptStatus, WorkflowScheme } from 'shared/types';
 import { statusBoardColors, statusLabels } from '@/utils/statusLabels';
 import type { SharedTaskRecord } from '@/hooks/useProjectTasks';
 import { SharedTaskCard } from './SharedTaskCard';
@@ -92,7 +92,7 @@ function TaskKanbanBoard({
       }
     }
     // Fallback to legacy color lookup
-    return statusBoardColors[statusName as TaskStatus] || '#000000';
+    return statusBoardColors[statusName] || '#000000';
   };
 
   // Check if a column is a valid drop target
@@ -101,7 +101,7 @@ function TaskKanbanBoard({
     if (draggedTaskId && getValidTargetStatuses) {
       const draggedTask = Object.values(columns)
         .flat()
-        .find((item) => item.type === 'task' && item.task.id === draggedTaskId)?.task;
+        .find((item): item is Extract<KanbanColumnItem, { type: 'task' }> => item.type === 'task' && item.task.id === draggedTaskId)?.task;
 
       if (draggedTask) {
         const currentStatus = draggedTask.workflow_status || draggedTask.status;
@@ -130,7 +130,7 @@ function TaskKanbanBoard({
       }
     }
     // Fallback to legacy label lookup
-    return statusLabels[statusName as TaskStatus] || statusName;
+    return statusLabels[statusName] || statusName;
   };
 
   // Check if a status is human-in-the-loop (no auto_execute or not configured)
@@ -186,7 +186,7 @@ function TaskKanbanBoard({
                       key={item.task.id}
                       task={item.task}
                       index={index}
-                      status={statusName as TaskStatus}
+                      status={statusName}
                       onViewDetails={onViewTaskDetails}
                       isOpen={selectedTaskId === item.task.id}
                       projectId={projectId}
@@ -203,7 +203,7 @@ function TaskKanbanBoard({
                     key={`shared-${item.task.id}`}
                     task={sharedTask}
                     index={index}
-                    status={statusName as TaskStatus}
+                    status={statusName}
                     isSelected={selectedSharedTaskId === item.task.id}
                     onViewDetails={onViewSharedTask}
                   />
