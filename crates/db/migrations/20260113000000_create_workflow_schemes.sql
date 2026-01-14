@@ -83,15 +83,14 @@ VALUES (
     ]',
     '[
       {"from_status": "todo", "to_status": "inprogress", "button_label": "Start", "button_variant": null, "requires_feedback": false, "feedback_prompt": null, "pre_actions": [], "post_actions": []},
-      {"from_status": "todo", "to_status": "cancelled", "button_label": "Cancel", "button_variant": null, "requires_feedback": false, "feedback_prompt": null, "pre_actions": [], "post_actions": []},
       {"from_status": "inprogress", "to_status": "todo", "button_label": "Move to To Do", "button_variant": null, "requires_feedback": false, "feedback_prompt": null, "pre_actions": [], "post_actions": []},
       {"from_status": "inprogress", "to_status": "inreview", "button_label": "Submit for Review", "button_variant": null, "requires_feedback": false, "feedback_prompt": null, "pre_actions": [], "post_actions": []},
       {"from_status": "inprogress", "to_status": "done", "button_label": "Mark Done", "button_variant": null, "requires_feedback": false, "feedback_prompt": null, "pre_actions": [], "post_actions": []},
-      {"from_status": "inprogress", "to_status": "cancelled", "button_label": "Cancel", "button_variant": null, "requires_feedback": false, "feedback_prompt": null, "pre_actions": [], "post_actions": []},
       {"from_status": "inreview", "to_status": "inprogress", "button_label": "Request Changes", "button_variant": null, "requires_feedback": false, "feedback_prompt": null, "pre_actions": [], "post_actions": []},
       {"from_status": "inreview", "to_status": "done", "button_label": "Approve", "button_variant": null, "requires_feedback": false, "feedback_prompt": null, "pre_actions": [], "post_actions": []},
       {"from_status": "done", "to_status": "inprogress", "button_label": "Reopen", "button_variant": null, "requires_feedback": false, "feedback_prompt": null, "pre_actions": [], "post_actions": []},
-      {"from_status": "cancelled", "to_status": "todo", "button_label": "Restore", "button_variant": null, "requires_feedback": false, "feedback_prompt": null, "pre_actions": [], "post_actions": []}
+      {"from_status": "cancelled", "to_status": "todo", "button_label": "Restore", "button_variant": null, "requires_feedback": false, "feedback_prompt": null, "pre_actions": [], "post_actions": []},
+      {"from_status": "*", "to_status": "cancelled", "button_label": "Cancel", "button_variant": null, "requires_feedback": false, "feedback_prompt": null, "pre_actions": [], "post_actions": []}
     ]'
 );
 

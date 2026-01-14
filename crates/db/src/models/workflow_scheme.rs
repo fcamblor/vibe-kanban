@@ -127,7 +127,8 @@ impl WorkflowScheme {
 
         // Check all transitions reference valid statuses
         for t in &self.transitions {
-            if !status_names.contains(&t.from_status) {
+            // Allow "*" as a wildcard for from_status (applies to any status)
+            if t.from_status != "*" && !status_names.contains(&t.from_status) {
                 errors.push(format!("Transition references unknown status: {}", t.from_status));
             }
             if !status_names.contains(&t.to_status) {
@@ -161,18 +162,20 @@ impl WorkflowScheme {
     }
 
     /// Get available transitions from a status
+    /// Includes both specific transitions and wildcard transitions (from "*")
     pub fn transitions_from(&self, status_name: &str) -> Vec<&WorkflowTransition> {
         self.transitions
             .iter()
-            .filter(|t| t.from_status == status_name)
+            .filter(|t| t.from_status == status_name || t.from_status == "*")
             .collect()
     }
 
     /// Check if a transition is valid
+    /// Supports wildcard transitions that apply to any status
     pub fn is_valid_transition(&self, from: &str, to: &str) -> bool {
         self.transitions
             .iter()
-            .any(|t| t.from_status == from && t.to_status == to)
+            .any(|t| (t.from_status == from || t.from_status == "*") && t.to_status == to)
     }
 
     /// Find a status by name

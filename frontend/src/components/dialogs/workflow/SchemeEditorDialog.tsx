@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -14,6 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2 } from 'lucide-react';
 import type { WorkflowScheme } from 'shared/types';
+import { StateDiagram } from '@/components/workflow/StateDiagram';
 
 interface SchemeEditorDialogProps {
   scheme?: WorkflowScheme;
@@ -39,6 +40,22 @@ export function SchemeEditorDialog({
   const [isDefault, setIsDefault] = useState(scheme?.is_default || false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // Compute diagram data for preview
+  const diagramData = useMemo(() => {
+    try {
+      const statuses = JSON.parse(statusesJson);
+      const transitions = JSON.parse(transitionsJson);
+
+      if (Array.isArray(statuses) && Array.isArray(transitions)) {
+        return { statuses, transitions };
+      }
+    } catch {
+      // Ignore parsing errors - will be caught by validateJson
+    }
+
+    return { statuses: [], transitions: [] };
+  }, [statusesJson, transitionsJson]);
 
   const validateJson = useCallback(): {
     statuses: Array<{
@@ -180,6 +197,16 @@ export function SchemeEditorDialog({
             />
           </div>
 
+          {diagramData.statuses.length > 0 && (
+            <div className="space-y-2">
+              <Label>State Diagram Preview</Label>
+              <StateDiagram
+                statuses={diagramData.statuses}
+                transitions={diagramData.transitions}
+              />
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="statuses-json">Statuses (JSON)</Label>
             <p className="text-sm text-muted-foreground">
@@ -215,7 +242,8 @@ export function SchemeEditorDialog({
           <div className="space-y-2">
             <Label htmlFor="transitions-json">Transitions (JSON)</Label>
             <p className="text-sm text-muted-foreground">
-              Array of transitions with from_status and to_status.
+              Array of transitions with from_status and to_status. Use &quot;*&quot;
+              as from_status for transitions from any status.
             </p>
             <Textarea
               id="transitions-json"
@@ -226,10 +254,17 @@ export function SchemeEditorDialog({
                   {
                     from_status: 'todo',
                     to_status: 'inprogress',
+                    button_label: 'Start',
                   },
                   {
                     from_status: 'inprogress',
                     to_status: 'done',
+                    button_label: 'Complete',
+                  },
+                  {
+                    from_status: '*',
+                    to_status: 'cancelled',
+                    button_label: 'Cancel',
                   },
                 ],
                 null,
