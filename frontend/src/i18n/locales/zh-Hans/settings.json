@@ -7,6 +7,8 @@
         "generalDesc": "主题、通知和偏好设置",
         "projects": "项目",
         "projectsDesc": "项目仓库和配置",
+        "workflows": "工作流方案",
+        "workflowsDesc": "管理工作流状态和转换定义",
         "repos": "仓库",
         "reposDesc": "仓库脚本和配置",
         "agents": "代理",

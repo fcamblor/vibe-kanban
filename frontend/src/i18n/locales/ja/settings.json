@@ -7,6 +7,8 @@
         "generalDesc": "テーマ、通知、および設定",
         "projects": "プロジェクト",
         "projectsDesc": "プロジェクトリポジトリと設定",
+        "workflows": "ワークフロースキーム",
+        "workflowsDesc": "ワークフローステータスとトランジション定義を管理",
         "repos": "リポジトリ",
         "reposDesc": "リポジトリスクリプトと設定",
         "agents": "エージェント",
