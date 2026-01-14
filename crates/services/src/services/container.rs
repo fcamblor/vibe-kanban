@@ -163,27 +163,21 @@ pub trait ContainerService {
         action.next_action.is_none()
     }
 
-    /// Finalize task execution by updating status to InReview and sending notifications
+    /// Finalize task execution without changing status, allowing user to choose transition
     async fn finalize_task(
         &self,
         share_publisher: Option<&SharePublisher>,
         ctx: &ExecutionContext,
     ) {
-        match Task::update_status(&self.db().pool, ctx.task.id, "inreview".to_string()).await {
-            Ok(_) => {
-                if let Some(publisher) = share_publisher
-                    && let Err(err) = publisher.update_shared_task_by_id(ctx.task.id).await
-                {
-                    tracing::warn!(
-                        ?err,
-                        "Failed to propagate shared task update for {}",
-                        ctx.task.id
-                    );
-                }
-            }
-            Err(e) => {
-                tracing::error!("Failed to update task status to InReview: {e}");
-            }
+        // No longer auto-transition to "inreview" - let the user choose the appropriate transition
+        if let Some(publisher) = share_publisher
+            && let Err(err) = publisher.update_shared_task_by_id(ctx.task.id).await
+        {
+            tracing::warn!(
+                ?err,
+                "Failed to propagate shared task update for {}",
+                ctx.task.id
+            );
         }
 
         // Skip notification if process was intentionally killed by user

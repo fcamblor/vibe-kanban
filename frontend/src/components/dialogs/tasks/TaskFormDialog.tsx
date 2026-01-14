@@ -16,7 +16,6 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import {
   Select,
   SelectContent,
@@ -36,6 +35,8 @@ import {
   useTaskMutations,
   useProjectRepos,
   useRepoBranchSelection,
+  useWorkflowScheme,
+  useNavigateWithSearch,
 } from '@/hooks';
 import {
   useKeySubmitTask,
@@ -45,10 +46,12 @@ import {
 } from '@/keyboard';
 import { useHotkeysContext } from 'react-hotkeys-hook';
 import { cn } from '@/lib/utils';
+import { paths } from '@/lib/paths';
 import type {
   TaskStatus,
   ExecutorProfileId,
   ImageResponse,
+  WorkflowTransition,
 } from 'shared/types';
 
 interface Task {
@@ -80,7 +83,7 @@ type TaskFormValues = {
   status: TaskStatus;
   executorProfileId: ExecutorProfileId | null;
   repoBranches: RepoBranch[];
-  autoStart: boolean;
+  targetTransition: WorkflowTransition | null;
 };
 
 const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
@@ -88,11 +91,24 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
   const editMode = mode === 'edit';
   const modal = useModal();
   const { t } = useTranslation(['tasks', 'common']);
+  const navigate = useNavigateWithSearch();
   const { createTask, createAndStart, updateTask } =
     useTaskMutations(projectId);
+  const workflowSchemeResult = useWorkflowScheme();
   const { system, profiles, loading: userSystemLoading } = useUserSystem();
   const { upload, uploadForTask } = useImageUpload();
   const { enableScope, disableScope } = useHotkeysContext();
+
+  // Get available transitions from the initial status (todo)
+  const availableTransitions = useMemo(() => {
+    if (!workflowSchemeResult.scheme?.transitions) return [];
+    const transitions = workflowSchemeResult.scheme.transitions.filter((t) => t.from_status === 'todo');
+    // Log for debugging
+    if (transitions.length === 0) {
+      console.warn('No transitions found from "todo" status. Available statuses:', workflowSchemeResult.scheme.statuses?.map((s) => s.name));
+    }
+    return transitions;
+  }, [workflowSchemeResult.scheme?.transitions, workflowSchemeResult.scheme?.statuses]);
 
   // Local UI state
   const [images, setImages] = useState<ImageResponse[]>([]);
@@ -135,7 +151,7 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
           status: props.task.status,
           executorProfileId: baseProfile,
           repoBranches: defaultRepoBranches,
-          autoStart: false,
+          targetTransition: null,
         };
 
       case 'duplicate':
@@ -145,7 +161,7 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
           status: 'todo',
           executorProfileId: baseProfile,
           repoBranches: defaultRepoBranches,
-          autoStart: true,
+          targetTransition: null,
         };
 
       case 'subtask':
@@ -157,7 +173,7 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
           status: 'todo',
           executorProfileId: baseProfile,
           repoBranches: defaultRepoBranches,
-          autoStart: true,
+          targetTransition: null,
         };
     }
   }, [mode, props, system.config?.executor_profile, defaultRepoBranches]);
@@ -191,20 +207,27 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
         image_ids: imageIds,
         shared_task_id: null,
       };
-      const shouldAutoStart = value.autoStart && !forceCreateOnlyRef.current;
-      if (shouldAutoStart) {
+      const shouldAutoTransition = value.targetTransition && !forceCreateOnlyRef.current;
+      if (shouldAutoTransition) {
         const repos = value.repoBranches.map((rb) => ({
           repo_id: rb.repoId,
           target_branch: rb.branch,
         }));
-        await createAndStart.mutateAsync(
-          {
-            task,
-            executor_profile_id: value.executorProfileId!,
-            repos,
-          },
-          { onSuccess: () => modal.remove() }
-        );
+        const result = await createAndStart.mutateAsync({
+          task,
+          executor_profile_id: value.executorProfileId!,
+          repos,
+          target_transition: value.targetTransition,
+        });
+        // Reset form state to clear isDirty flag, then close modal
+        form.reset();
+        setImages([]);
+        setNewlyUploadedImageIds([]);
+        modal.remove();
+        // Navigate after modal closes to ensure proper cleanup
+        Promise.resolve().then(() => {
+          navigate(`${paths.task(projectId, result.id)}/attempts/latest`);
+        });
       } else {
         await createTask.mutateAsync(task, { onSuccess: () => modal.remove() });
       }
@@ -213,7 +236,7 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
 
   const validator = (value: TaskFormValues): string | undefined => {
     if (!value.title.trim().length) return 'need title';
-    if (value.autoStart && !forceCreateOnlyRef.current) {
+    if (value.targetTransition && !forceCreateOnlyRef.current) {
       if (!value.executorProfileId) return 'need executor profile';
       if (
         value.repoBranches.length === 0 ||
@@ -395,15 +418,15 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
   });
 
   const loading = branchesLoading || userSystemLoading;
-  if (loading) return <></>;
 
   return (
     <>
-      <Dialog
-        open={modal.visible}
-        onOpenChange={handleDialogClose}
-        uncloseable={showDiscardWarning}
-      >
+      {!loading && (
+        <Dialog
+          open={modal.visible}
+          onOpenChange={handleDialogClose}
+          uncloseable={showDiscardWarning}
+        >
         <div
           {...getRootProps()}
           className="h-full flex flex-col gap-4 p-4 relative min-h-0"
@@ -497,113 +520,98 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
             </form.Field>
           )}
 
-          {/* Create mode dropdowns */}
+          {/* Create mode: executor profile and branch selection - always visible */}
           {!editMode && (
-            <form.Field name="autoStart" mode="array">
-              {(autoStartField) => {
-                const isSingleRepo = repoBranchConfigs.length === 1;
-                return (
-                  <div
-                    className={cn(
-                      'transition-opacity duration-200',
-                      isSingleRepo ? '' : 'space-y-3',
-                      autoStartField.state.value
-                        ? 'opacity-100'
-                        : 'opacity-0 pointer-events-none'
+            <>
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <form.Field name="executorProfileId">
+                    {(field) => (
+                      <ExecutorProfileSelector
+                        profiles={profiles}
+                        selectedProfile={field.state.value}
+                        onProfileSelect={(profile) =>
+                          field.handleChange(profile)
+                        }
+                        disabled={isSubmitting}
+                        showLabel={false}
+                        className="flex items-center gap-2 flex-row flex-[2] min-w-0"
+                        itemClassName="flex-1 min-w-0"
+                      />
                     )}
-                  >
-                    <div className="flex items-center gap-2">
-                      <form.Field name="executorProfileId">
-                        {(field) => (
-                          <ExecutorProfileSelector
-                            profiles={profiles}
-                            selectedProfile={field.state.value}
-                            onProfileSelect={(profile) =>
-                              field.handleChange(profile)
-                            }
-                            disabled={
-                              isSubmitting || !autoStartField.state.value
-                            }
-                            showLabel={false}
-                            className="flex items-center gap-2 flex-row flex-[2] min-w-0"
-                            itemClassName="flex-1 min-w-0"
-                          />
-                        )}
-                      </form.Field>
-                      {isSingleRepo && (
-                        <form.Field name="repoBranches">
-                          {(field) => {
-                            const config = repoBranchConfigs[0];
-                            const selectedBranch =
-                              field.state.value.find(
-                                (v) => v.repoId === config.repoId
-                              )?.branch ?? config.targetBranch;
-                            return (
-                              <div
-                                className={cn(
-                                  'flex-1 min-w-0',
-                                  isSubmitting &&
-                                    'opacity-50 pointer-events-none'
-                                )}
-                              >
-                                <BranchSelector
-                                  branches={config.branches}
-                                  selectedBranch={selectedBranch}
-                                  onBranchSelect={(branch) => {
-                                    field.handleChange([
-                                      { repoId: config.repoId, branch },
-                                    ]);
-                                  }}
-                                  placeholder={
-                                    branchesLoading
-                                      ? t('createAttemptDialog.loadingBranches')
-                                      : t('createAttemptDialog.selectBranch')
-                                  }
-                                />
-                              </div>
-                            );
-                          }}
-                        </form.Field>
-                      )}
-                    </div>
-                    {!isSingleRepo && (
-                      <form.Field name="repoBranches">
-                        {(field) => {
-                          const configs = repoBranchConfigs.map((config) => ({
-                            ...config,
-                            targetBranch:
-                              field.state.value.find(
-                                (v) => v.repoId === config.repoId
-                              )?.branch ?? config.targetBranch,
-                          }));
-                          return (
-                            <RepoBranchSelector
-                              configs={configs}
-                              onBranchChange={(repoId, branch) => {
-                                const newValue = field.state.value.map((v) =>
-                                  v.repoId === repoId ? { ...v, branch } : v
-                                );
-                                if (
-                                  !newValue.find((v) => v.repoId === repoId)
-                                ) {
-                                  newValue.push({ repoId, branch });
-                                }
-                                field.handleChange(newValue);
+                  </form.Field>
+                  {repoBranchConfigs.length === 1 && (
+                    <form.Field name="repoBranches">
+                      {(field) => {
+                        const config = repoBranchConfigs[0];
+                        const selectedBranch =
+                          field.state.value.find(
+                            (v) => v.repoId === config.repoId
+                          )?.branch ?? config.targetBranch;
+                        return (
+                          <div
+                            className={cn(
+                              'flex-1 min-w-0',
+                              isSubmitting &&
+                                'opacity-50 pointer-events-none'
+                            )}
+                          >
+                            <BranchSelector
+                              branches={config.branches}
+                              selectedBranch={selectedBranch}
+                              onBranchSelect={(branch) => {
+                                field.handleChange([
+                                  { repoId: config.repoId, branch },
+                                ]);
                               }}
-                              isLoading={branchesLoading}
-                              showLabel={true}
-                              className={cn(
-                                isSubmitting && 'opacity-50 pointer-events-none'
-                              )}
+                              placeholder={
+                                branchesLoading
+                                  ? t('createAttemptDialog.loadingBranches')
+                                  : t('createAttemptDialog.selectBranch')
+                              }
                             />
-                          );
-                        }}
-                      </form.Field>
-                    )}
-                  </div>
-                );
-              }}
-            </form.Field>
+                          </div>
+                        );
+                      }}
+                    </form.Field>
+                  )}
+                </div>
+                {repoBranchConfigs.length > 1 && (
+                  <form.Field name="repoBranches">
+                    {(field) => {
+                      const configs = repoBranchConfigs.map((config) => ({
+                        ...config,
+                        targetBranch:
+                          field.state.value.find(
+                            (v) => v.repoId === config.repoId
+                          )?.branch ?? config.targetBranch,
+                      }));
+                      return (
+                        <RepoBranchSelector
+                          configs={configs}
+                          onBranchChange={(repoId, branch) => {
+                            const newValue = field.state.value.map((v) =>
+                              v.repoId === repoId ? { ...v, branch } : v
+                            );
+                            if (
+                              !newValue.find((v) => v.repoId === repoId)
+                            ) {
+                              newValue.push({ repoId, branch });
+                            }
+                            field.handleChange(newValue);
+                          }}
+                          isLoading={branchesLoading}
+                          showLabel={true}
+                          className={cn(
+                            isSubmitting && 'opacity-50 pointer-events-none'
+                          )}
+                        />
+                      );
+                    }}
+                  </form.Field>
+                )}
+              </div>
+            </>
           )}
 
           {/* Actions */}
@@ -621,28 +629,43 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
               </Button>
             </div>
 
-            {/* Autostart switch */}
+            {/* Transition selector */}
             <div className="flex items-center gap-3">
               {!editMode && (
-                <form.Field name="autoStart">
+                <form.Field name="targetTransition">
                   {(field) => (
-                    <div className="flex items-center gap-2">
-                      <Switch
-                        id="autostart-switch"
-                        checked={field.state.value}
-                        onCheckedChange={(checked) =>
-                          field.handleChange(checked)
-                        }
-                        disabled={isSubmitting}
-                        className="data-[state=checked]:bg-gray-900 dark:data-[state=checked]:bg-gray-100"
-                        aria-label={t('taskFormDialog.startLabel')}
-                      />
-                      <Label
-                        htmlFor="autostart-switch"
-                        className="text-sm cursor-pointer"
-                      >
-                        {t('taskFormDialog.startLabel')}
+                    <div className="flex items-center gap-2 flex-1">
+                      <Label htmlFor="transition-select" className="text-sm whitespace-nowrap">
+                        {t('taskFormDialog.onCreation')}:
                       </Label>
+                      <Select
+                        value={field.state.value?.to_status ?? 'none'}
+                        onValueChange={(toStatus) => {
+                          if (toStatus === 'none') {
+                            field.handleChange(null);
+                          } else {
+                            const transition = availableTransitions.find(
+                              (t) => t.to_status === toStatus
+                            );
+                            field.handleChange(transition ?? null);
+                          }
+                        }}
+                        disabled={isSubmitting}
+                      >
+                        <SelectTrigger id="transition-select" className="w-auto">
+                          <SelectValue placeholder={t('taskFormDialog.createOnly')} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">
+                            {t('taskFormDialog.createOnly')}
+                          </SelectItem>
+                          {availableTransitions.map((transition) => (
+                            <SelectItem key={transition.to_status} value={transition.to_status}>
+                              {transition.button_label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   )}
                 </form.Field>
@@ -662,8 +685,8 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
                       ? t('taskFormDialog.updating')
                       : t('taskFormDialog.updateTask')
                     : isSubmitting
-                      ? values.autoStart
-                        ? t('taskFormDialog.starting')
+                      ? values.targetTransition
+                        ? t('taskFormDialog.creating')
                         : t('taskFormDialog.creating')
                       : t('taskFormDialog.create');
 
@@ -678,6 +701,7 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
           </div>
         </div>
       </Dialog>
+      )}
       {showDiscardWarning && (
         <div className="fixed inset-0 z-[10000] flex items-start justify-center p-4 overflow-y-auto">
           <div

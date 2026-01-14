@@ -38,6 +38,7 @@ import { useEntries } from '@/contexts/EntriesContext';
 import { useKeySubmitFollowUp, Scope } from '@/keyboard';
 import { useHotkeysContext } from 'react-hotkeys-hook';
 import { useProject } from '@/contexts/ProjectContext';
+import { useWorkflowScheme } from '@/hooks/useWorkflowScheme';
 //
 import { VariantSelector } from '@/components/tasks/VariantSelector';
 import { useAttemptBranch } from '@/hooks/useAttemptBranch';
@@ -72,10 +73,18 @@ export function TaskFollowUpSection({
 }: TaskFollowUpSectionProps) {
   const { t } = useTranslation('tasks');
   const { projectId } = useProject();
+  const scheme = useWorkflowScheme();
 
   // Derive IDs from session
   const workspaceId = session?.workspace_id;
   const sessionId = session?.id;
+
+  // Check if discussions are allowed for current task status
+  const currentStatus = task.workflow_status || task.status;
+  const statusConfig = scheme?.statuses?.find(
+    (s) => s.name === currentStatus
+  );
+  const allowDiscussions = statusConfig?.allow_discussions ?? true;
 
   const { isAttemptRunning, stopExecution, isStopping, processes } =
     useAttemptExecution(workspaceId, task.id);
@@ -686,6 +695,19 @@ export function TaskFollowUpSection({
     return (
       <div className="flex items-center justify-center h-full">
         <Loader2 className="animate-spin h-6 w-6" />
+      </div>
+    );
+  }
+
+  if (!allowDiscussions) {
+    return (
+      <div className="flex items-center justify-center h-full p-4">
+        <Alert>
+          <MessageSquare className="h-4 w-4" />
+          <AlertDescription>
+            {t('followUp.discussionsNotAllowed')}
+          </AlertDescription>
+        </Alert>
       </div>
     );
   }

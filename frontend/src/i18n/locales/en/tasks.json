@@ -639,6 +639,8 @@
       "cancelled": "Cancelled"
     },
     "startLabel": "Start",
+    "onCreation": "On creation",
+    "createOnly": "Create only",
     "attachImage": "Attach image",
     "dropImagesHere": "Drop images here",
     "updating": "Updating...",

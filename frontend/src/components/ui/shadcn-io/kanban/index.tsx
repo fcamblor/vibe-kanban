@@ -183,6 +183,8 @@ export type KanbanHeaderProps =
       color: Status['color'];
       className?: string;
       onAddTask?: () => void;
+      showHitlEmoji?: boolean;
+      disableAddTask?: boolean;
     };
 
 export const KanbanHeader = (props: KanbanHeaderProps) => {
@@ -215,22 +217,25 @@ export const KanbanHeader = (props: KanbanHeaderProps) => {
         />
 
         <p className="m-0 text-sm">{props.name}</p>
+        {props.showHitlEmoji && <span className="text-sm">👤</span>}
       </span>
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              className="m-0 p-0 h-0 text-foreground/50 hover:text-foreground"
-              onClick={props.onAddTask}
-              aria-label={t('actions.addTask')}
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="top">{t('actions.addTask')}</TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      {!props.disableAddTask && (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                className="m-0 p-0 h-0 text-foreground/50 hover:text-foreground"
+                onClick={props.onAddTask}
+                aria-label={t('actions.addTask')}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top">{t('actions.addTask')}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
     </Card>
   );
 };

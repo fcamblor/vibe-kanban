@@ -11,6 +11,7 @@ pub mod scratch;
 pub mod session;
 pub mod tag;
 pub mod task;
+pub mod task_status_transition_history;
 pub mod workflow_scheme;
 pub mod workspace;
 pub mod workspace_repo;

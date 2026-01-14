@@ -59,9 +59,8 @@ export function useTaskMutations(projectId?: string) {
           ),
         });
       }
-      if (projectId) {
-        navigate(`${paths.task(projectId, createdTask.id)}/attempts/latest`);
-      }
+      // Navigation is handled by the caller (TaskFormDialog) to allow them to
+      // manage modal closing before navigating
     },
     onError: (err) => {
       console.error('Failed to create and start task:', err);

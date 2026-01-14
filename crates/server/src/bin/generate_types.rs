@@ -38,7 +38,6 @@ fn generate_types_content() -> String {
         db::models::workflow_scheme::WorkflowScheme::decl(),
         db::models::workflow_scheme::WorkflowStatus::decl(),
         db::models::workflow_scheme::WorkflowAgentConfig::decl(),
-        db::models::workflow_scheme::ExecutorProfileId::decl(),
         db::models::workflow_scheme::WorkflowAutomatedAction::decl(),
         db::models::workflow_scheme::ActionTrigger::decl(),
         db::models::workflow_scheme::TransitionOnFailure::decl(),

@@ -14,6 +14,7 @@ use db::models::{
     execution_process::{ExecutionProcess, ExecutionProcessRunReason},
     scratch::{Scratch, ScratchType},
     session::{CreateSession, Session},
+    task_status_transition_history::TaskStatusTransitionHistory,
     workspace::{Workspace, WorkspaceError},
     workspace_repo::WorkspaceRepo,
 };
@@ -112,6 +113,11 @@ pub async fn follow_up(
         )))?;
 
     tracing::info!("{:?}", workspace);
+
+    // Clear transition history on human intervention (new message)
+    if let Err(e) = TaskStatusTransitionHistory::clear_for_task(pool, workspace.task_id).await {
+        tracing::error!("Failed to clear transition history: {}", e);
+    }
 
     deployment
         .container()

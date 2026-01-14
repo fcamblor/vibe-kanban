@@ -14,8 +14,12 @@ use axum::{
 };
 use db::models::{
     image::TaskImage,
+    project::Project,
+    project_repo::ProjectRepo,
     repo::{Repo, RepoError},
     task::{CreateTask, Task, TaskWithAttemptStatus, UpdateTask},
+    task_status_transition_history::{TaskStatusTransitionHistory, TransitionTrigger},
+    workflow_scheme::{WorkflowScheme, WorkflowTransition},
     workspace::{CreateWorkspace, Workspace},
     workspace_repo::{CreateWorkspaceRepo, WorkspaceRepo},
 };
@@ -144,6 +148,8 @@ pub struct CreateAndStartTaskRequest {
     pub task: CreateTask,
     pub executor_profile_id: ExecutorProfileId,
     pub repos: Vec<WorkspaceRepoInput>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target_transition: Option<WorkflowTransition>,
 }
 
 pub async fn create_task_and_start(
@@ -234,9 +240,32 @@ pub async fn create_task_and_start(
         )
         .await;
 
-    let task = Task::find_by_id(pool, task.id)
+    let mut task = Task::find_by_id(pool, task.id)
         .await?
         .ok_or(ApiError::Database(SqlxError::RowNotFound))?;
+
+    // Apply target transition if specified
+    if let Some(transition) = &payload.target_transition {
+        let old_status = task.status.clone();
+        Task::update_status(pool, task.id, transition.to_status.clone()).await?;
+        task.status = transition.to_status.clone();
+
+        // Record the human-triggered transition
+        TaskStatusTransitionHistory::create(
+            pool,
+            task.id,
+            old_status.clone(),
+            transition.to_status.clone(),
+            TransitionTrigger::Human,
+        )
+        .await?;
+
+        tracing::info!(
+            "Applied transition from {} to {} after task creation",
+            old_status,
+            transition.to_status
+        );
+    }
 
     tracing::info!("Started attempt for task {}", task.id);
     Ok(ResponseJson(ApiResponse::success(TaskWithAttemptStatus {
@@ -245,6 +274,172 @@ pub async fn create_task_and_start(
         last_attempt_failed: false,
         executor: payload.executor_profile_id.executor.to_string(),
     })))
+}
+
+/// Kill all running auto-triggered execution processes for a task
+async fn kill_previous_auto_executions(
+    deployment: &DeploymentImpl,
+    task_id: uuid::Uuid,
+) -> Result<(), ApiError> {
+    // Find all workspaces for this task
+    let workspaces = Workspace::fetch_all(&deployment.db().pool, Some(task_id))
+        .await
+        .map_err(|e| ApiError::Workspace(e))?;
+
+    for workspace in workspaces {
+        deployment.container().try_stop(&workspace, true).await;
+    }
+
+    Ok(())
+}
+
+/// Check if we've hit the loop detection threshold (5 consecutive auto-transitions)
+async fn check_loop_detection(
+    pool: &sqlx::SqlitePool,
+    task_id: uuid::Uuid,
+    to_status: &str,
+) -> Result<bool, ApiError> {
+    const LOOP_THRESHOLD: i32 = 6; // Check last 6 to see if 5 are consecutive
+
+    let count = TaskStatusTransitionHistory::count_consecutive_auto_to_status(
+        pool,
+        task_id,
+        to_status,
+        LOOP_THRESHOLD,
+    )
+    .await?;
+
+    if count >= 5 {
+        tracing::warn!(
+            "Loop detected for task {}: {} consecutive auto-transitions to '{}'",
+            task_id,
+            count,
+            to_status
+        );
+        return Ok(true);
+    }
+
+    Ok(false)
+}
+
+/// Try to auto-execute an agent when task status changes
+async fn try_auto_execute_agent(
+    deployment: &DeploymentImpl,
+    task: &Task,
+    old_status: &str,
+    new_status: &str,
+) -> Result<Option<uuid::Uuid>, ApiError> {
+    // 1. Get project and workflow scheme
+    let project = Project::find_by_id(&deployment.db().pool, task.project_id)
+        .await?
+        .ok_or_else(|| ApiError::BadRequest("Project not found".into()))?;
+
+    let scheme_id = project.workflow_scheme_id
+        .ok_or_else(|| ApiError::BadRequest("Project has no workflow scheme".into()))?;
+
+    let scheme = WorkflowScheme::find_by_id(&deployment.db().pool, scheme_id)
+        .await?
+        .ok_or_else(|| ApiError::BadRequest("Workflow scheme not found".into()))?;
+
+    // 2. Get status config
+    let status = scheme
+        .find_status(new_status)
+        .ok_or_else(|| ApiError::BadRequest(format!("Status '{}' not found in scheme", new_status)))?;
+
+    // 3. Check if auto_execute is enabled
+    let agent_config = match &status.agent_config {
+        Some(config) if config.auto_execute => config,
+        _ => return Ok(None), // No auto-execution needed
+    };
+
+    let executor_profile_id = agent_config
+        .executor_profile_id
+        .clone()
+        .ok_or_else(|| ApiError::BadRequest("Agent config missing executor_profile_id".into()))?;
+
+    // 4. Check for loop detection
+    if check_loop_detection(&deployment.db().pool, task.id, new_status).await? {
+        return Err(ApiError::BadRequest(format!(
+            "Loop detected: Task has transitioned to '{}' more than 5 times automatically. Please intervene manually.",
+            new_status
+        )));
+    }
+
+    // 5. Kill previous auto-executions
+    kill_previous_auto_executions(deployment, task.id).await?;
+
+    // 6. Create workspace with timestamped branch
+    let timestamp = chrono::Utc::now().format("%Y%m%d-%H%M%S");
+    let branch_name = format!("vibe/{}/auto-{}-{}", task.id, new_status, timestamp);
+
+    let workspace_id = uuid::Uuid::new_v4();
+    let workspace = Workspace::create(
+        &deployment.db().pool,
+        &CreateWorkspace {
+            branch: branch_name,
+            agent_working_dir: None,
+        },
+        workspace_id,
+        task.id,
+    )
+    .await?;
+
+    // 7. Link project repos to workspace
+    let project_repos = ProjectRepo::find_by_project_id(&deployment.db().pool, project.id)
+        .await?;
+    let workspace_repos: Vec<CreateWorkspaceRepo> = project_repos
+        .iter()
+        .map(|pr| CreateWorkspaceRepo {
+            repo_id: pr.repo_id,
+            target_branch: "main".to_string(),
+        })
+        .collect();
+    WorkspaceRepo::create_many(&deployment.db().pool, workspace.id, &workspace_repos).await?;
+
+    // 8. Construct prompt (TODO: will be used for initial message in future)
+    let _prompt = format!(
+        "Task: {}\n\n{}\n\n{}{}",
+        task.title,
+        task.description.as_deref().unwrap_or(""),
+        agent_config.instructions.as_deref().unwrap_or(""),
+        agent_config
+            .append_prompt
+            .as_ref()
+            .map(|p| format!("\n\n{}", p))
+            .unwrap_or_default()
+    );
+
+    // 9. Start execution
+    let executors_profile_id: executors::profile::ExecutorProfileId = serde_json::from_value(
+        serde_json::to_value(&executor_profile_id)
+            .map_err(|e| ApiError::BadRequest(format!("Failed to convert executor profile: {}", e)))?
+    )
+    .map_err(|e| ApiError::BadRequest(format!("Failed to convert executor profile: {}", e)))?;
+
+    let is_execution_started = deployment
+        .container()
+        .start_workspace(&workspace, executors_profile_id)
+        .await
+        .inspect_err(|err| tracing::error!("Failed to auto-execute agent: {}", err))
+        .is_ok();
+
+    if !is_execution_started {
+        return Err(ApiError::BadRequest(
+            "Failed to start agent execution".to_string(),
+        ));
+    }
+
+    // 10. Record the auto-transition
+    TaskStatusTransitionHistory::create(
+        &deployment.db().pool,
+        task.id,
+        old_status.to_string(),
+        new_status.to_string(),
+        TransitionTrigger::Auto,
+    )
+    .await?;
+
+    Ok(Some(workspace.id))
 }
 
 pub async fn update_task(
@@ -264,7 +459,8 @@ pub async fn update_task(
     };
 
     // Handle status - accept any string value for workflow statuses
-    let status = payload.status.unwrap_or(existing_task.status);
+    let status = payload.status.unwrap_or(existing_task.status.clone());
+    let old_status = existing_task.status.clone();
 
     let parent_workspace_id = payload
         .parent_workspace_id
@@ -276,10 +472,25 @@ pub async fn update_task(
         existing_task.project_id,
         title,
         description,
-        status,
+        status.clone(),
         parent_workspace_id,
     )
     .await?;
+
+    // Record human-triggered transition (before auto-execution attempt)
+    if status != old_status {
+        if let Err(e) = TaskStatusTransitionHistory::create(
+            &deployment.db().pool,
+            task.id,
+            old_status.clone(),
+            status.clone(),
+            TransitionTrigger::Human,
+        )
+        .await
+        {
+            tracing::error!("Failed to record human transition: {}", e);
+        }
+    }
 
     if let Some(image_ids) = &payload.image_ids {
         TaskImage::delete_by_task_id(&deployment.db().pool, task.id).await?;
@@ -292,6 +503,33 @@ pub async fn update_task(
             return Err(ShareError::MissingConfig("share publisher unavailable").into());
         };
         publisher.update_shared_task(&task).await?;
+    }
+
+    // Try auto-executing agent if status changed
+    if status != old_status {
+        match try_auto_execute_agent(&deployment, &task, &old_status, &status).await {
+            Ok(Some(_workspace_id)) => {
+                tracing::info!(
+                    "Auto-started agent execution for task {} on status change to '{}'",
+                    task.id,
+                    status
+                );
+                // TODO: Send notification to user
+            }
+            Ok(None) => {
+                // No auto-execution configured (manual/HITL status)
+            }
+            Err(e) => {
+                // Log error but don't fail the status update
+                tracing::error!(
+                    "Failed to auto-execute agent for task {} on status '{}': {}",
+                    task.id,
+                    status,
+                    e
+                );
+                // TODO: Send error notification to user
+            }
+        }
     }
 
     Ok(ResponseJson(ApiResponse::success(task)))

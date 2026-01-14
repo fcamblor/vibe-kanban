@@ -1,4 +1,5 @@
 use chrono::{DateTime, Utc};
+use executors::profile::ExecutorProfileId;
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, SqlitePool};
 use std::collections::HashSet;
@@ -6,6 +7,10 @@ use ts_rs::TS;
 use uuid::Uuid;
 
 // ============ Core Type Definitions ============
+
+fn default_allow_discussions() -> bool {
+    true
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct WorkflowStatus {
@@ -17,6 +22,8 @@ pub struct WorkflowStatus {
     pub is_terminal: bool,
     pub agent_config: Option<WorkflowAgentConfig>,
     pub automated_actions: Vec<WorkflowAutomatedAction>,
+    #[serde(default = "default_allow_discussions")]
+    pub allow_discussions: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -24,12 +31,8 @@ pub struct WorkflowAgentConfig {
     pub executor_profile_id: Option<ExecutorProfileId>,
     pub instructions: Option<String>,
     pub append_prompt: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-pub struct ExecutorProfileId {
-    pub executor: String,
-    pub variant: Option<String>,
+    #[serde(default)]
+    pub auto_execute: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
