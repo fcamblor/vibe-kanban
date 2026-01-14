@@ -38,7 +38,8 @@ VALUES (
         "is_initial": true,
         "is_terminal": false,
         "agent_config": null,
-        "automated_actions": []
+        "automated_actions": [],
+        "allow_discussions": false
       },
       {
         "name": "inprogress",
@@ -47,8 +48,14 @@ VALUES (
         "position": 1,
         "is_initial": false,
         "is_terminal": false,
-        "agent_config": null,
-        "automated_actions": []
+        "agent_config": {
+          "executor_profile_id": {"executor": "CLAUDE_CODE", "variant": null},
+          "instructions": "Implement the solution according to the plan. Write code, run tests, and ensure all requirements are met.",
+          "append_prompt": null,
+          "auto_execute": true
+        },
+        "automated_actions": [],
+        "allow_discussions": true
       },
       {
         "name": "inreview",
@@ -58,7 +65,8 @@ VALUES (
         "is_initial": false,
         "is_terminal": false,
         "agent_config": null,
-        "automated_actions": []
+        "automated_actions": [],
+        "allow_discussions": true
       },
       {
         "name": "done",
@@ -68,7 +76,8 @@ VALUES (
         "is_initial": false,
         "is_terminal": true,
         "agent_config": null,
-        "automated_actions": []
+        "automated_actions": [],
+        "allow_discussions": false
       },
       {
         "name": "cancelled",
@@ -78,7 +87,8 @@ VALUES (
         "is_initial": false,
         "is_terminal": true,
         "agent_config": null,
-        "automated_actions": []
+        "automated_actions": [],
+        "allow_discussions": false
       }
     ]',
     '[

@@ -67,34 +67,40 @@ export function DiffsPanel({ selectedAttempt, gitOps }: DiffsPanelProps) {
     return () => clearTimeout(timer);
   }, [loadingState]);
 
-  if (diffs.length > 0 && loadingState === 'loading') {
-    setLoadingState('loaded');
-  }
+  // Process diffs when they arrive or when loading state changes
+  useEffect(() => {
+    if (diffs.length > 0 && loadingState === 'loading') {
+      setLoadingState('loaded');
+    }
+  }, [diffs, loadingState]);
 
-  if (diffs.length > 0) {
-    const newDiffs = diffs
-      .map((d, index) => ({ diff: d, index }))
-      .filter((d) => {
-        const id = getDiffId(d);
-        return !processedIds.has(id);
-      });
+  // Handle collapsing of diffs based on defaults and line count
+  useEffect(() => {
+    if (diffs.length > 0) {
+      const newDiffs = diffs
+        .map((d, index) => ({ diff: d, index }))
+        .filter((d) => {
+          const id = getDiffId(d);
+          return !processedIds.has(id);
+        });
 
-    if (newDiffs.length > 0) {
-      const newIds = newDiffs.map(getDiffId);
-      const toCollapse = newDiffs
-        .filter(
-          ({ diff }) =>
-            DEFAULT_DIFF_COLLAPSE_DEFAULTS[diff.change] ||
-            exceedsMaxLineCount(diff, DEFAULT_COLLAPSE_MAX_LINES)
-        )
-        .map(getDiffId);
+      if (newDiffs.length > 0) {
+        const newIds = newDiffs.map(getDiffId);
+        const toCollapse = newDiffs
+          .filter(
+            ({ diff }) =>
+              DEFAULT_DIFF_COLLAPSE_DEFAULTS[diff.change] ||
+              exceedsMaxLineCount(diff, DEFAULT_COLLAPSE_MAX_LINES)
+          )
+          .map(getDiffId);
 
-      setProcessedIds((prev) => new Set([...prev, ...newIds]));
-      if (toCollapse.length > 0) {
-        setCollapsedIds((prev) => new Set([...prev, ...toCollapse]));
+        setProcessedIds((prev) => new Set([...prev, ...newIds]));
+        if (toCollapse.length > 0) {
+          setCollapsedIds((prev) => new Set([...prev, ...toCollapse]));
+        }
       }
     }
-  }
+  }, [diffs, processedIds]);
 
   const loading = loadingState === 'loading';
 

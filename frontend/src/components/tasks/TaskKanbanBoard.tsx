@@ -133,6 +133,21 @@ function TaskKanbanBoard({
     return statusLabels[statusName as TaskStatus] || statusName;
   };
 
+  // Check if a status is human-in-the-loop (no auto_execute or not configured)
+  const isHumanInTheLoop = (statusName: string): boolean => {
+    if (!scheme?.statuses) return true;
+    const status = scheme.statuses.find((s) => s.name === statusName);
+    if (!status?.agent_config) return true; // No agent config = HITL
+    return !status.agent_config.auto_execute; // Not auto-execute = HITL
+  };
+
+  // Check if a status is initial (can create tasks in this status)
+  const isInitialStatus = (statusName: string): boolean => {
+    if (!scheme?.statuses) return statusName === 'todo'; // Fallback to todo if no scheme
+    const status = scheme.statuses.find((s) => s.name === statusName);
+    return status?.is_initial ?? false;
+  };
+
   return (
     <KanbanProvider
       onDragStart={handleDragStart}
@@ -154,6 +169,8 @@ function TaskKanbanBoard({
               name={getStatusDisplayName(statusName)}
               color={getStatusColor(statusName)}
               onAddTask={onCreateTask}
+              showHitlEmoji={isHumanInTheLoop(statusName)}
+              disableAddTask={!isInitialStatus(statusName)}
             />
             <KanbanCards>
               {items.map((item, index) => {
