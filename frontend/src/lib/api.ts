@@ -361,6 +361,20 @@ export const projectsApi = {
     );
     return handleApiResponse<void>(response);
   },
+
+  setWorkflowScheme: async (
+    projectId: string,
+    workflowSchemeId: string | null
+  ): Promise<Project> => {
+    const response = await makeRequest(
+      `/api/projects/${projectId}/workflow-scheme`,
+      {
+        method: 'PUT',
+        body: JSON.stringify({ workflow_scheme_id: workflowSchemeId }),
+      }
+    );
+    return handleApiResponse<Project>(response);
+  },
 };
 
 // Task Management APIs

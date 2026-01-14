@@ -24,6 +24,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
 import { useProjects } from '@/hooks/useProjects';
 import { useProjectMutations } from '@/hooks/useProjectMutations';
+import { useWorkflowSchemes } from '@/hooks/useWorkflowSchemes';
 import { RepoPickerDialog } from '@/components/dialogs/shared/RepoPickerDialog';
 import { projectsApi } from '@/lib/api';
 import { repoBranchKeys } from '@/hooks/useRepoBranches';
@@ -53,6 +54,12 @@ export function ProjectSettings() {
     error: projectsError,
   } = useProjects();
 
+  // Fetch all workflow schemes
+  const {
+    schemes,
+    isLoading: schemesLoading,
+  } = useWorkflowSchemes();
+
   // Selected project state
   const [selectedProjectId, setSelectedProjectId] = useState<string>(
     searchParams.get('projectId') || ''
@@ -71,6 +78,10 @@ export function ProjectSettings() {
   const [repoError, setRepoError] = useState<string | null>(null);
   const [addingRepo, setAddingRepo] = useState(false);
   const [deletingRepoId, setDeletingRepoId] = useState<string | null>(null);
+
+  // Workflow scheme state
+  const [savingScheme, setSavingScheme] = useState(false);
+  const [schemeError, setSchemeError] = useState<string | null>(null);
 
   // Check for unsaved changes (project name)
   const hasUnsavedChanges = useMemo(() => {
@@ -317,6 +328,29 @@ export function ProjectSettings() {
     });
   };
 
+  const handleWorkflowSchemeChange = async (schemeId: string | null) => {
+    if (!selectedProject) return;
+
+    setSavingScheme(true);
+    setSchemeError(null);
+    try {
+      const updatedProject = await projectsApi.setWorkflowScheme(
+        selectedProject.id,
+        schemeId
+      );
+      setSelectedProject(updatedProject);
+      queryClient.invalidateQueries({
+        queryKey: ['projects'],
+      });
+    } catch (err) {
+      setSchemeError(
+        err instanceof Error ? err.message : 'Failed to update workflow scheme'
+      );
+    } finally {
+      setSavingScheme(false);
+    }
+  };
+
   if (projectsLoading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -423,6 +457,50 @@ export function ProjectSettings() {
                 <p className="text-sm text-muted-foreground">
                   {t('settings.projects.general.name.helper')}
                 </p>
+              </div>
+
+              {/* Workflow Scheme Selector */}
+              <div className="space-y-2 border-t pt-4">
+                <Label htmlFor="workflow-scheme">
+                  Workflow Scheme
+                </Label>
+                <Select
+                  value={selectedProject.workflow_scheme_id || 'default'}
+                  onValueChange={(value) => {
+                    const schemeId = value === 'default' ? null : value;
+                    handleWorkflowSchemeChange(schemeId);
+                  }}
+                  disabled={savingScheme || schemesLoading}
+                >
+                  <SelectTrigger id="workflow-scheme">
+                    <SelectValue placeholder="Select a workflow scheme" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="default">
+                      Use default workflow
+                    </SelectItem>
+                    {schemes && schemes.length > 0 ? (
+                      schemes.map((scheme) => (
+                        <SelectItem key={scheme.id} value={scheme.id}>
+                          {scheme.name}
+                          {scheme.is_default && ' (default)'}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="no-schemes" disabled>
+                        No custom schemes
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+                <p className="text-sm text-muted-foreground">
+                  Choose a workflow scheme to manage task statuses and transitions
+                </p>
+                {schemeError && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{schemeError}</AlertDescription>
+                  </Alert>
+                )}
               </div>
 
               {/* Save Button */}

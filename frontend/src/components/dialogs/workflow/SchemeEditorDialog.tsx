@@ -70,20 +70,12 @@ export function SchemeEditorDialog({
   }, [statusesJson, transitionsJson]);
 
   const validateJson = useCallback((): {
-    statuses: Array<{
-      name: string;
-      display_name: string;
-      color: string;
-      position: number;
-    }>;
-    transitions: Array<{
-      from_status: string;
-      to_status: string;
-    }>;
+    statuses: Array<any>;
+    transitions: Array<any>;
   } | null => {
     try {
-      const statuses = JSON.parse(statusesJson);
-      const transitions = JSON.parse(transitionsJson);
+      let statuses = JSON.parse(statusesJson);
+      let transitions = JSON.parse(transitionsJson);
 
       if (!Array.isArray(statuses)) {
         setError('Statuses must be an array');
@@ -95,8 +87,9 @@ export function SchemeEditorDialog({
         return null;
       }
 
-      // Validate statuses
-      for (const status of statuses) {
+      // Validate and normalize statuses
+      for (let i = 0; i < statuses.length; i++) {
+        const status = statuses[i];
         if (!status.name || typeof status.name !== 'string') {
           setError('Each status must have a "name" field (string)');
           return null;
@@ -106,17 +99,27 @@ export function SchemeEditorDialog({
           return null;
         }
         if (!status.color || typeof status.color !== 'string') {
-          setError('Each status must have a "color" field (string, e.g., "--info")');
+          setError('Each status must have a "color" field (string, e.g., "hsl(0, 0%, 50%)")');
           return null;
         }
         if (typeof status.position !== 'number') {
           setError('Each status must have a "position" field (number)');
           return null;
         }
+
+        // Add default values for optional fields
+        statuses[i] = {
+          ...status,
+          is_initial: status.is_initial ?? false,
+          is_terminal: status.is_terminal ?? false,
+          agent_config: status.agent_config ?? null,
+          automated_actions: status.automated_actions ?? [],
+        };
       }
 
-      // Validate transitions
-      for (const transition of transitions) {
+      // Validate and normalize transitions
+      for (let i = 0; i < transitions.length; i++) {
+        const transition = transitions[i];
         if (!transition.from_status || typeof transition.from_status !== 'string') {
           setError('Each transition must have a "from_status" field (string)');
           return null;
@@ -125,6 +128,17 @@ export function SchemeEditorDialog({
           setError('Each transition must have a "to_status" field (string)');
           return null;
         }
+
+        // Add default values for optional fields
+        transitions[i] = {
+          ...transition,
+          button_label: transition.button_label ?? null,
+          button_variant: transition.button_variant ?? null,
+          requires_feedback: transition.requires_feedback ?? false,
+          feedback_prompt: transition.feedback_prompt ?? null,
+          pre_actions: transition.pre_actions ?? [],
+          post_actions: transition.post_actions ?? [],
+        };
       }
 
       setError(null);
@@ -340,7 +354,7 @@ export const SchemeEditorDialog_: {
   ) => Promise<Omit<WorkflowScheme, 'id' | 'created_at' | 'updated_at'> | null>;
   hide: () => void;
 } = {
-  show: (onSave, scheme) => {
+  show: (_onSave, _scheme) => {
     return new Promise((resolve) => {
       resolvePromise = resolve;
       // This would be used with a global dialog system
