@@ -1,0 +1,5 @@
+[tools]
+node = "22.21.1"
+pnpm = "9"
+rust = "nightly-2025-12-04"
+
