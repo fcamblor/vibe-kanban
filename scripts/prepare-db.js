@@ -12,9 +12,18 @@ console.log(checkMode ? 'Checking SQLx prepared queries...' : 'Preparing databas
 const backendDir = path.join(__dirname, '..', 'crates/db');
 process.chdir(backendDir);
 
-// Create temporary database file
-const dbFile = path.join(backendDir, 'prepare_db.sqlite');
-fs.writeFileSync(dbFile, '');
+// Create dev database file
+const devAssetsDir = path.join(__dirname, '..', 'dev_assets');
+if (!fs.existsSync(devAssetsDir)) {
+  fs.mkdirSync(devAssetsDir, { recursive: true });
+}
+
+const dbFile = path.join(devAssetsDir, 'db.sqlite');
+// Don't overwrite if exists, just ensure it exists
+if (!fs.existsSync(dbFile)) {
+  fs.writeFileSync(dbFile, '');
+  console.log(`Created db file: ${dbFile}`)
+}
 
 try {
   // Get absolute path (cross-platform)
@@ -40,9 +49,6 @@ try {
 
   console.log(checkMode ? 'SQLx check complete!' : 'Database preparation complete!');
 
-} finally {
-  // Clean up temporary file
-  if (fs.existsSync(dbFile)) {
-    fs.unlinkSync(dbFile);
-  }
+} catch (error) {
+  throw error;
 }
